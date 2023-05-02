@@ -696,6 +696,8 @@ always @ (posedge clk_sys) begin
         // always ack when it's not program rom
         dtack_n <= prog_rom_cs ? !prog_rom_data_valid : 0; 
 
+        // add dsp_ctrl_cs to cpu_din
+
         // select cpu data input based on what is active 
         cpu_din <= prog_rom_cs ? prog_rom_data :
             ram_cs ? ram_dout :
@@ -873,6 +875,10 @@ wire sprite_ofs_cs;
 wire sprite_cs; // *** offset needs to be auto-incremented
 wire sprite_size_cs; // *** offset needs to be auto-incremented
 wire sprite_ram_cs;
+
+wire dsp_ctrl_cs;
+//TMS32010 mapping may not be necessary here or the chipselect
+//wire dsp_rom_1_cs;    // map(0x000, 0x7ff).rom();
 
 wire z80_p1_cs;
 wire z80_p2_cs;
