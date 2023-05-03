@@ -729,26 +729,27 @@ always @ (posedge clk_sys) begin
 end  
 
 // (tms320c10fnl.pdf)
-TMS320C1X dsp
- (
-    .CLK(clk_70M),  // (X2/CLKIN) Crystal input internal oscillator or external system clock input
-    .RST_N(~reset). //
-    .EN(1).         // (DEN) Data enable for device input data on D15-D0
 
-    .CE_F(clk_14M). // Phased clocks for chip enable
-    .CE_R(clk_14M). // Chip enable clock phase
+//TMS320C1X dsp
+// (
+//    .CLK(clk_70M),  // (X2/CLKIN) Crystal input internal oscillator or external system clock input
+//    .RST_N(~reset), //
+//    .EN(1),         // (DEN) Data enable for device input data on D15-D0
 
-    .RS_N().        // (RS) Reset for initializing the device
-    .INT_N().       // (INT) External interrupt input
-    .BIO_N().       // (BIO) External polling input
+//    .CE_F(clk_14M), // Phased clocks for chip enable
+//    .CE_R(clk_14M), // Chip enable clock phase
 
-    .A().           // 
-    .DI().          // 
-    .DO().          // 
-    .WE_N().        // (WE) Write enable for device output data on D15-D0
-    .DEN_N().       // (DEN) Data enable for device input data on D15-D0
-    .MEN_N().       // (MEN) Memory enable indicates that D15-D0 will accept external memory instruction.
-    .RDY()          // 
+//    .RS_N(),        // (RS) Reset for initializing the device
+//    .INT_N(),       // (INT) External interrupt input
+//    .BIO_N(),       // (BIO) External polling input
+
+//    .A(),           // 
+//    .DI(),          // 
+//    .DO(),          // 
+//    .WE_N(),        // (WE) Write enable for device output data on D15-D0
+//    .DEN_N(),       // (DEN) Data enable for device input data on D15-D0
+//    .MEN_N(),       // (MEN) Memory enable indicates that D15-D0 will accept external memory instruction.
+//    .RDY()          // 
 );
 
 wire [15:0] cpu_shared_dout;
