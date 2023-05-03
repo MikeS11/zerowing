@@ -26,4 +26,3 @@ set_global_assignment -name QIP_FILE rtl/jtopl/hdl/jt26.qip
 set_global_assignment -name QIP_FILE rtl/jtopl/hdl/jtopl2.qip
 
 set_global_assignment -name QIP_FILE rtl/TMS320C1X/TMS320C1X.qip
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/TMS320C1X/TMS320C1X_mem.sv

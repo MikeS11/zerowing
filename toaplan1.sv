@@ -257,6 +257,7 @@ wire  clk_70M;
 reg  clk_7M;
 reg  clk_10M;   // 20MHz.  68k core needs twice freq
 reg  clk_3_5M;
+reg  clk_14M;   // TMS32010 clk
 
 assign    SDRAM_CLK = clk_70M;
 
@@ -269,6 +270,7 @@ pll pll
     .locked(pll_locked)
 );
 
+reg [5:0] clk14_count;
 reg [5:0] clk10_count;
 reg [5:0] clk7_count;
 reg [5:0] clk_3_5_count;
@@ -308,6 +310,13 @@ always @ (posedge clk_sys ) begin
         clk7_count <= 0;
     end else begin
         clk7_count <= clk7_count + 1;
+    end
+    
+    clk_14M <= ( clk14_count == 0);
+    if ( clk14_count == 4 ) begin
+        clk14_count <= 0;
+    end else begin
+        clk14_count <= clk14_count + 1;
     end
     
     clk_3_5M <= ( clk_3_5_count == 0);
@@ -718,6 +727,29 @@ always @ (posedge clk_sys) begin
             16'd0;
     end
 end  
+
+// (tms320c10fnl.pdf)
+TMS320C1X dsp
+ (
+    .CLK(clk_70M),  // (X2/CLKIN) Crystal input internal oscillator or external system clock input
+    .RST_N(~reset). //
+    .EN(1).         // (DEN) Data enable for device input data on D15-D0
+
+    .CE_F(clk_14M). // Phased clocks for chip enable
+    .CE_R(clk_14M). // Chip enable clock phase
+
+    .RS_N().        // (RS) Reset for initializing the device
+    .INT_N().       // (INT) External interrupt input
+    .BIO_N().       // (BIO) External polling input
+
+    .A().           // 
+    .DI().          // 
+    .DO().          // 
+    .WE_N().        // (WE) Write enable for device output data on D15-D0
+    .DEN_N().       // (DEN) Data enable for device input data on D15-D0
+    .MEN_N().       // (MEN) Memory enable indicates that D15-D0 will accept external memory instruction.
+    .RDY()          // 
+);
 
 wire [15:0] cpu_shared_dout;
 wire  [7:0] z80_shared_dout;
