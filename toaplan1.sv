@@ -750,7 +750,7 @@ end
 //    .DEN_N(),       // (DEN) Data enable for device input data on D15-D0
 //    .MEN_N(),       // (MEN) Memory enable indicates that D15-D0 will accept external memory instruction.
 //    .RDY()          // 
-);
+//);
 
 wire [15:0] cpu_shared_dout;
 wire  [7:0] z80_shared_dout;
