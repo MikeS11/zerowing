@@ -7,7 +7,7 @@
   <category>Run 'n Gun</category>
   <rbf>toaplan1</rbf>
 
-  <buttons names="Shot,Bomb,-,Start,Coin,Pause" default="A,B,R,L,Start"/>
+  <buttons names="Shot,Bomb,-,P1 Start,P2 Start,Coin A,Coin B,Pause" default="A,B,X,Y,R,Start"/>
 
   <switches default="00,00,00,00,00,00,00,00">
     <!-- DSWA -->

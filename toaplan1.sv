@@ -202,14 +202,25 @@ assign BUTTONS = 0;
 // 0         1         2         3          4         5         6   
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// X  XXXXXXXX   XX      X XXXXXXXX                                 
+// X  XXXXXXXX  XX    X X XXXXXXXX                          XXXXXXXX
 
 wire [1:0] aspect_ratio = status[9:8];
 wire       orientation  = ~status[3];
 wire [2:0] scan_lines   = status[6:4];
+reg        refresh_mod;
+reg        new_vmode;
+
+always @(posedge clk_sys) begin
+    if (refresh_mod != ~status[19]) begin
+        refresh_mod <= ~status[19];
+        new_vmode <= ~new_vmode;
+    end
+end
 
 wire [3:0] hs_offset = status[27:24];
 wire [3:0] vs_offset = status[31:28];
+wire [3:0] hs_width  = status[59:56];
+wire [3:0] vs_width  = status[63:60];
 
 assign VIDEO_ARX = (!aspect_ratio) ? (orientation  ? 8'd4 : 8'd3) : (aspect_ratio - 1'd1);
 assign VIDEO_ARY = (!aspect_ratio) ? (orientation  ? 8'd3 : 8'd4) : 12'd0;
@@ -228,22 +239,27 @@ localparam CONF_STR = {
     "P1-;",
     "P1O7,Video Mode,NTSC,PAL;",
     "P1OM,Video Signal,RGBS/YPbPr,Y/C;",
+    "P1OJ,Video Timing,RGBS,CVBS-Y/C;",
     "P1-;",
     "P1OOR,H-sync Pos Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
     "P1OSV,V-sync Pos Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
-    //"P1-;",
-    //"P1oOR,H-sync Width Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
-    //"P1oSV,V-sync Width Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
     "P1-;",
-    "P2,Pause Options;",
+    "P1oOR,H-sync Width Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
+    "P1oSV,V-sync Width Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
+    "P1-;",
+    "P2,Audio Settings;",
     "P2-;",
-    "P2OK,Pause when OSD is open,Off,On;",
-    "P2OL,Dim video after 10s,Off,On;",
+    "P2OB,OPL2 Audio,On,Off;",
     "P2-;",
-    "P4,Core Options;",
-    "P4-;",
-    "P4OE,Service Menu,Off,On;",
-    "P4OF,M68000 Freq,10Mhz,17.5MHz;",
+    "P3,Core Settings;",
+    "P3-;",
+    "P3OE,Service Menu,Off,On;",
+    "P3-;",
+    "P3OF,68k Freq.,10Mhz,17.5MHz;",
+    "P3-;",
+    "P3OK,Pause OSD,Off,When Open;",
+    "P3OL,Dim Video,Off,10s;",
+    "P3-;",
     "-;",
     "DIP;",
     "-;",
@@ -272,6 +288,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
     .status_menumask(direct_video),
     .forced_scandoubler(hps_forced_scandoubler),
     .gamma_bus(gamma_bus),
+    .new_vmode(new_vmode),
     .direct_video(direct_video),
     .video_rotated(video_rotated),
 
@@ -343,12 +360,12 @@ reg [15:0] system;
 
 always @ (posedge clk_sys ) begin
     if ( pcb ) begin
-        p1        <=  { start1, p1_buttons[2:0], p1_right, p1_left, p1_down, p1_up };
-        p2        <=  { start2, p2_buttons[2:0], p2_right, p2_left, p2_down, p2_up };
+        p1        <= { start1, p1_buttons[2:0], p1_right, p1_left, p1_down, p1_up };
+        p2        <= { start2, p2_buttons[2:0], p2_right, p2_left, p2_down, p2_up };
         z80_dswa  <= sw[0];
         z80_dswb  <= sw[1];
         z80_tjump <= sw[2];
-        system    <=  { 1'b0, start2, start1, coin_b, coin_a, service, key_tilt, key_service };
+        system    <= { 1'b0, start2, start1, coin_b, coin_a, service, key_tilt, key_service };
     end
 end
 
@@ -545,6 +562,9 @@ video_timing video_timing (
     .crtc3(crtc[3]),
     .hs_offset(hs_offset),
     .vs_offset(vs_offset),
+    .hs_width(hs_width),
+    .vs_width(vs_width),
+    .refresh_mod(refresh_mod),
     .hc(hc),
     .vc(vc),
     .hbl_delay(hbl),
@@ -586,8 +606,8 @@ arcade_video #(320,24) arcade_video
 
         .RGB_in(rgb_pause_out),
 
-        .HBlank(hbl_delay),
-        .VBlank(vbl_delay),
+        .HBlank(hbl),
+        .VBlank(vbl),
         .HSync(hsync),
         .VSync(vsync),
 

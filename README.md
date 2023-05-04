@@ -51,7 +51,7 @@ The intent is for this core to be a 1:1 implementation of Toaplan V1 hardware. C
 
 | Location | PCB<br>Number | Freq (MHz) | Use                                                                                             |
 |----------|---------------|------------|-------------------------------------------------------------------------------------------------|
-| X1       | Varies        | 10.00      | M68000 CLK (10 MHz)<br><br>HD647180x (10 MHz)                                                   |
+| X1       | Varies        | 10.00      | M68000 CLK (10 MHz)<br><br>HD647180x CLK (10 MHz)                                               |
 | R1       | Varies        | 28.000     | Z80 CLK (3.5 MHz)<br><br>YM3812 CLK (3.5 MHz)<br><br>Pixel CLK (7 MHz)<br><br> DSP CLK (14 MHz) |
 
 **Pixel clock:** 7.00 MHz
