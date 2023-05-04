@@ -1,8 +1,4 @@
-///----------------------------------------------------------------------------
-//
-//  Copyright 2021 Darren Olafson
-//
-//  MiSTer Copyright (C) 2017 Sorgelig
+//============================================================================
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -18,7 +14,7 @@
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
-//----------------------------------------------------------------------------
+//============================================================================
 
 `default_nettype none
 
@@ -37,14 +33,6 @@ module emu
     //Base video clock. Usually equals to CLK_SYS.
     output        CLK_VIDEO,
 
-    //Enable Y/C output
-`ifdef MISTER_ENABLE_YC	
-	output 	[39:0]	CHROMA_PHASE_INC,
-    output  [26:0]  COLORBURST_RANGE,
-	output 			PALFLAG,
-	output 			YC_EN, // Enable YC to be build in the core.
-`endif
-
     //Multiple resolutions are supported using different CE_PIXEL rates.
     //Must be based on CLK_VIDEO
     output        CE_PIXEL,
@@ -59,9 +47,9 @@ module emu
     output  [7:0] VGA_B,
     output        VGA_HS,
     output        VGA_VS,
-    output        VGA_DE,    // = ~(VBlank | HBlank)
+    output        VGA_DE,     // = ~(VBlank | HBlank)
     output        VGA_F1,
-    output [1:0]  VGA_SL,
+    output [2:0]  VGA_SL,
     output        VGA_SCALER, // Force VGA scaler
 
     input  [11:0] HDMI_WIDTH,
@@ -174,6 +162,12 @@ module emu
     output        UART_DTR,
     input         UART_DSR,
 
+`ifdef MISTER_ENABLE_YC
+	output [39:0] CHROMA_PHASE_INC,
+	output        YC_EN,
+	output        PALFLAG,
+`endif
+
     // Open-drain User port.
     // 0 - D+/RX
     // 1 - D-/TX
@@ -185,34 +179,37 @@ module emu
     input         OSD_STATUS
 );
 
+///////// Default values for ports not used in this core /////////
 
+assign ADC_BUS  = 'Z;
+assign USER_OUT = 0;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
-
-assign VGA_F1    = 0;
-assign VGA_SCALER= 0;
+assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
+//assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = 'Z;
+//assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = '0;  
+assign VGA_F1 = 0;
+assign VGA_SCALER = 0;
 assign HDMI_FREEZE = 0;
 
-assign USER_OUT  = '1;
 assign AUDIO_MIX = 0;
-assign LED_USER  = ioctl_download & cpu_a[0] ;
-assign AUDIO_MIX = 0; // 0 - no mix, 1 - 25%, 2 - 50%, 3 - 100% (mono)
-
-//assign LED_USER  = ioctl_download ;
-assign LED_DISK  = 0;
+assign LED_USER = ioctl_download & cpu_a[0];
+assign LED_DISK = 0;
 assign LED_POWER = 0;
 assign BUTTONS = 0;
 
-wire [1:0] aspect_ratio = status[2:1];
-wire orientation = ~status[3];
-wire [2:0] scan_lines = status[6:4];
-wire turbo_68k = status[7];
-
 // Status Bit Map:
-//              Upper                          Lower                
+//              Upper Case                     Lower Case           
 // 0         1         2         3          4         5         6   
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXX            XXXXXXXX                                 
+// X  XXXXXXXX   XX      X XXXXXXXX                                 
+
+wire [1:0] aspect_ratio = status[9:8];
+wire       orientation  = ~status[3];
+wire [2:0] scan_lines   = status[6:4];
+
+wire [3:0] hs_offset = status[27:24];
+wire [3:0] vs_offset = status[31:28];
 
 assign VIDEO_ARX = (!aspect_ratio) ? (orientation  ? 8'd4 : 8'd3) : (aspect_ratio - 1'd1);
 assign VIDEO_ARY = (!aspect_ratio) ? (orientation  ? 8'd3 : 8'd4) : 12'd0;
@@ -223,22 +220,32 @@ localparam CONF_STR = {
     "-;",
     "P1,Video Settings;",
     "P1-;",
-    "P1O12,Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
+    "P1O89,Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
     "P1O3,Orientation,Horz,Vert;",
     "P1-;",
-    "P1O46,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
-    "P1OL,Video Signal,RGBS/YPbPr,Y/C;",
-    "P1OOR,H-sync Adjust,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
-    "P1OSV,V-sync Adjust,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
-//    "-;",
-//    "P2,Pause options;",
-//    "P2OA,Pause when OSD is open,On,Off;",
-//    "P2OB,Dim video after 10s,On,Off;",
+    "P1O46,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%,CRT 100%;",
+    "P1OA,Force Scandoubler,Off,On;",
+    "P1-;",
+    "P1O7,Video Mode,NTSC,PAL;",
+    "P1OM,Video Signal,RGBS/YPbPr,Y/C;",
+    "P1-;",
+    "P1OOR,H-sync Pos Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
+    "P1OSV,V-sync Pos Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
+    //"P1-;",
+    //"P1oOR,H-sync Width Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
+    //"P1oSV,V-sync Width Adj,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
+    "P1-;",
+    "P2,Pause Options;",
+    "P2-;",
+    "P2OK,Pause when OSD is open,Off,On;",
+    "P2OL,Dim video after 10s,Off,On;",
+    "P2-;",
+    "P4,Core Options;",
+    "P4-;",
+    "P4OE,Service Menu,Off,On;",
+    "P4OF,M68000 Freq,10Mhz,17.5MHz;",
+    "-;",
     "DIP;",
-    "P3,Debug;",
-    "P3-;",
-    "P3O7,Turbo (68k),Off,On;",
-    "P3O8,Service Menu,Off,On;",
     "-;",
     "R0,Reset;",
     "J1,Button 1,Button 2,Button 3,Start,Coin,Pause;",
@@ -246,241 +253,13 @@ localparam CONF_STR = {
     "V,v",`BUILD_DATE
 };
 
+wire hps_forced_scandoubler;
+wire forced_scandoubler = hps_forced_scandoubler | status[10];
 
-// CLOCKS
-
-wire pll_locked;
-
-wire  clk_sys;
-wire  clk_70M;
-
-reg  clk_7M;
-reg  clk_10M;   // 20MHz.  68k core needs twice freq
-reg  clk_3_5M;
-reg  clk_14M;   // TMS32010 clk
-
-assign    SDRAM_CLK = clk_70M;
-
-pll pll
-(
-    .refclk(CLK_50M),
-    .rst(0),
-    .outclk_0(clk_sys),     // 70
-    .outclk_1(clk_70M),     
-    .locked(pll_locked)
-);
-
-reg [5:0] clk14_count;
-reg [5:0] clk10_count;
-reg [5:0] clk7_count;
-reg [5:0] clk_3_5_count;
-
-always @ (posedge clk_sys ) begin
-
-    clk_10M <= 0;
-    
-    if ( turbo_68k == 0 ) begin
-        // standard speed 20MHz = 10MHz 68k
-        case (clk10_count)
-            1: clk_10M <= 1;
-            3: clk_10M <= 1;
-        endcase
-        
-        if ( clk10_count == 6 ) begin
-            clk10_count <= 0;
-        end else begin
-            clk10_count <= clk10_count + 1;
-        end
-
-    end else begin
-        // standard speed 35MHz = 17.5MHz 68k
-        case (clk10_count)
-            1: clk_10M <= 1;
-        endcase
-        
-        if ( clk10_count == 1 ) begin
-            clk10_count <= 0;
-        end else begin
-            clk10_count <= clk10_count + 1;
-        end
-    end
-    
-    clk_7M <= ( clk7_count == 0);
-    if ( clk7_count == 9 ) begin
-        clk7_count <= 0;
-    end else begin
-        clk7_count <= clk7_count + 1;
-    end
-    
-    clk_14M <= ( clk14_count == 0);
-    if ( clk14_count == 4 ) begin
-        clk14_count <= 0;
-    end else begin
-        clk14_count <= clk14_count + 1;
-    end
-    
-    clk_3_5M <= ( clk_3_5_count == 0);
-    if ( clk_3_5_count == 19 ) begin
-        clk_3_5_count <= 0;
-    end else begin
-        clk_3_5_count <= clk_3_5_count + 1;
-    end
-
-end
-
-// 8 dip switches of 8 bits
-reg [7:0] sw[8];
-always @(posedge clk_sys) begin
-    if (ioctl_wr && (ioctl_index==254) && !ioctl_addr[24:3]) begin
-        sw[ioctl_addr[2:0]] <= ioctl_dout;
-    end
-end
-
-// Status bits
-wire [63:0] status;
-
-// Video settings
-wire        forced_scandoubler;
-wire        direct_video;
-
-wire [3:0] hs_offset = status[27:24];
-wire [3:0] vs_offset = status[31:28];
-
-wire [9:0] sprite_adj_x = 0;
-wire [9:0] sprite_adj_y = 0;
-
-// Controls
 wire  [1:0] buttons;
-wire [15:0] joy0, joy1;
+wire [63:0] status;
 wire [10:0] ps2_key;
-
-wire [21:0] gamma_bus;
-
-wire       p1_up      = joy0[3] | key_p1_up;
-wire       p1_down    = joy0[2] | key_p1_down;
-wire       p1_left    = joy0[1] | key_p1_left;
-wire       p1_right   = joy0[0] | key_p1_right;
-wire [2:0] p1_buttons = joy0[6:4] | {key_p1_c, key_p1_b, key_p1_a};
-
-wire       p2_up      = joy1[3] | key_p2_up;
-wire       p2_down    = joy1[2] | key_p2_down;
-wire       p2_left    = joy1[1] | key_p2_left;
-wire       p2_right   = joy1[0] | key_p2_right;
-wire [2:0] p2_buttons = joy1[6:4] | {key_p2_c, key_p2_b, key_p2_a};
-
-wire       p1_start = joy0[7] | key_p1_start;
-wire       p2_start = joy1[7] | key_p2_start;
-wire       p1_coin  = joy0[8] | key_p1_coin;
-wire       p2_coin  = joy1[8] | key_p2_coin;
-wire       b_pause  = joy0[9] | joy1[9] | key_pause;
-wire       service  = joy0[10] | key_test | status[8];
-
-// Keyboard handler
-
-wire key_p1_start, key_p2_start, key_p1_coin, key_p2_coin;
-wire key_pause, key_test, key_reset, key_tilt, key_service;
-
-wire key_p1_up, key_p1_left, key_p1_down, key_p1_right, key_p1_a, key_p1_b, key_p1_c;
-wire key_p2_up, key_p2_left, key_p2_down, key_p2_right, key_p2_a, key_p2_b, key_p2_c;
-
-wire pressed = ps2_key[9];
-
-always @(posedge clk_sys) begin
-    reg old_state;
-
-    old_state <= ps2_key[10];
-    if(old_state ^ ps2_key[10]) begin
-        casex(ps2_key[8:0])
-            'h016: key_p1_start  <= pressed; // 1
-            'h01e: key_p2_start  <= pressed; // 2
-            'h02E: key_p1_coin   <= pressed; // 5
-            'h036: key_p2_coin   <= pressed; // 6
-            'h006: key_test      <= key_test ^ pressed; // F2
-            'h004: key_reset     <= pressed; // F3
-            'h046: key_service   <= pressed; // 9
-            'h02c: key_tilt      <= pressed; // t
-            'h04D: key_pause     <= pressed; // p
-
-            'hX75: key_p1_up     <= pressed; // up
-            'hX72: key_p1_down   <= pressed; // down
-            'hX6b: key_p1_left   <= pressed; // left
-            'hX74: key_p1_right  <= pressed; // right
-            'h014: key_p1_a      <= pressed; // lctrl
-            'h011: key_p1_b      <= pressed; // lalt
-            'h029: key_p1_c      <= pressed; // space
-
-            'h02d: key_p2_up     <= pressed; // r
-            'h02b: key_p2_down   <= pressed; // f
-            'h023: key_p2_left   <= pressed; // d
-            'h034: key_p2_right  <= pressed; // g
-            'h01c: key_p2_a      <= pressed; // a
-            'h01b: key_p2_b      <= pressed; // s
-            'h015: key_p2_c      <= pressed; // q
-        endcase
-    end
-end
-
-// PAUSE SYSTEM
-//wire    pause_cpu;
-//wire    hs_pause;
-//
-//pause #(8,8,8,70) pause (
-//    .clk_sys(clk_sys),
-//    .reset(reset),
-//    .user_button(b_pause),
-//    .pause_request(hs_pause),
-//    .options(~status[11:10]),
-//    .pause_cpu(pause_cpu),
-//    .OSD_STATUS(0),
-//    .r(rgb_out[23:16]),
-//    .g(rgb_out[15:8]),
-//    .b(rgb_out[7:0]),
-//    .rgb_out()
-//);
-
-reg [1:0] adj_layer ;
-reg [15:0] scroll_adj_x [3:0];
-reg [15:0] scroll_adj_y [3:0];
-reg layer_en [3:0];
-
-// PAUSE SYSTEM
-// reg        pause;                                    // Pause signal (active-high)
-// reg        pause_toggle = 1'b0;                      // User paused (active-high)
-// reg [31:0] pause_timer;                              // Time since pause
-// reg [31:0] pause_timer_dim = 31'h11E1A300;           // Time until screen dim (10 seconds @ 48Mhz)
-// reg        dim_video = 1'b0;                         // Dim video output (active-high)
-
-// Pause when highscore module requires access, user has pressed pause, or OSD is open and option is set
-// assign pause =  pause_toggle | (OSD_STATUS && ~status[13:12]);
-// assign dim_video = (pause_timer >= pause_timer_dim);
-
-// reg old_pause;
-
-// always @(posedge clk_sys) begin
-//     old_pause <= b_pause;
-//     if (~old_pause & b_pause) begin
-//         pause_toggle <= ~pause_toggle;
-//     end
-//     if (pause_toggle) begin
-//         if (pause_timer < pause_timer_dim)
-//         begin
-//             pause_timer <= pause_timer + 1'b1;
-//         end
-//     end    else begin
-//         pause_timer <= 1'b0;
-//     end
-// end
-
-wire        ioctl_download;
-wire        ioctl_upload;
-wire        ioctl_wr;
-wire [15:0]    ioctl_index;
-wire [26:0] ioctl_addr;
-wire [15:0] ioctl_dout;
-wire [15:0] ioctl_din;
-wire        ioctl_wait;
-
-//
+wire [15:0] joy0, joy1;
 
 hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
@@ -491,7 +270,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
     .ps2_key(ps2_key),
     .status(status),
     .status_menumask(direct_video),
-    .forced_scandoubler(forced_scandoubler),
+    .forced_scandoubler(hps_forced_scandoubler),
     .gamma_bus(gamma_bus),
     .direct_video(direct_video),
     .video_rotated(video_rotated),
@@ -509,30 +288,294 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
     .joystick_1(joy1)
 );
 
-reg ce_pix;
+// INPUT
+
+// 8 dip switches of 8 bits
+reg [7:0] sw[8];
+always @(posedge clk_sys) begin
+    if (ioctl_wr && (ioctl_index==254) && !ioctl_addr[24:3]) begin
+        sw[ioctl_addr[2:0]] <= ioctl_dout;
+    end
+end
+
+always @(posedge clk_sys) begin
+    if (ioctl_wr && ioctl_index==1) begin
+        pcb <= ioctl_dout;
+    end
+end
+
+wire        direct_video;
+
+wire        ioctl_download;
+wire        ioctl_upload;
+//wire        ioctl_upload_req;
+wire        ioctl_wait;
+wire        ioctl_wr;
+wire [15:0] ioctl_index;
+wire [26:0] ioctl_addr;
+wire [15:0] ioctl_dout;
+wire [15:0] ioctl_din;
+
+reg   [7:0] pcb;
+wire        tile_priority_type;
+wire [15:0] scroll_y_offset;
+
+localparam pcb_zero_wing     = 0;
+localparam pcb_out_zone_conv = 1;
+localparam pcb_out_zone      = 2;
+localparam pcb_hellfire      = 3;
+localparam pcb_truxton       = 4;
+localparam pcb_fireshark     = 5;
+localparam pcb_vimana        = 6;
+localparam pcb_rallybike     = 7;
+localparam pcb_demonwld      = 8;
+
+wire [21:0] gamma_bus;
+
+//<buttons names="Fire,Jump,Start,Coin,Pause" default="A,B,R,L,Start" />
+// Inputs tied to z80_din
+reg [15:0] p1;
+reg [15:0] p2;
+reg [15:0] z80_dswa;
+reg [15:0] z80_dswb;
+reg [15:0] z80_tjump;
+reg [15:0] system;
+
+always @ (posedge clk_sys ) begin
+    if ( pcb ) begin
+        p1        <=  { start1, p1_buttons[2:0], p1_right, p1_left, p1_down, p1_up };
+        p2        <=  { start2, p2_buttons[2:0], p2_right, p2_left, p2_down, p2_up };
+        z80_dswa  <= sw[0];
+        z80_dswb  <= sw[1];
+        z80_tjump <= sw[2];
+        system    <=  { 1'b0, start2, start1, coin_b, coin_a, service, key_tilt, key_service };
+    end
+end
+
+wire        p1_right;
+wire        p1_left;
+wire        p1_down;
+wire        p1_up;
+wire [2:0]  p1_buttons;
+
+wire        p2_right;
+wire        p2_left;
+wire        p2_down;
+wire        p2_up;
+wire [2:0]  p2_buttons;
+
+wire start1;
+wire start2;
+wire coin_a;
+wire coin_b;
+wire b_pause;
+wire service;
+
+always @ * begin
+    if ( pcb ) begin
+        p1_right   <= joy0[0]   | key_p1_right;
+        p1_left    <= joy0[1]   | key_p1_left;
+        p1_down    <= joy0[2]   | key_p1_down;
+        p1_up      <= joy0[3]   | key_p1_up;
+        p1_buttons <= joy0[6:4] | {key_p1_c, key_p1_b, key_p1_a};
+
+        p2_right   <= joy1[0]   | key_p2_right;
+        p2_left    <= joy1[1]   | key_p2_left;
+        p2_down    <= joy1[2]   | key_p2_down;
+        p2_up      <= joy1[3]   | key_p2_up;
+        p2_buttons <= joy1[6:4] | {key_p2_c, key_p2_b, key_p2_a};
+
+        start1    <= joy0[7]  | joy1[7]  | key_start_1p;
+        start2    <= joy0[8]  | joy1[8]  | key_start_2p;
+        coin_a    <= joy0[9]  | joy1[9]  | key_coin_a;
+        coin_b    <= joy0[10] | joy1[10] | key_coin_b;
+        b_pause   <= joy0[11] | key_pause;
+        service   <= key_test | status[14];
+    end
+end
+
+// Keyboard handler
+
+wire key_start_1p, key_start_2p, key_coin_a, key_coin_b;
+wire key_tilt, key_test, key_reset, key_service, key_pause;
+
+wire key_p1_up, key_p1_left, key_p1_down, key_p1_right, key_p1_a, key_p1_b, key_p1_c;
+wire key_p2_up, key_p2_left, key_p2_down, key_p2_right, key_p2_a, key_p2_b, key_p2_c;
+
+wire pressed = ps2_key[9];
+
+always @(posedge clk_sys) begin
+    reg old_state;
+
+    old_state <= ps2_key[10];
+    if ( old_state ^ ps2_key[10] ) begin
+        casex ( ps2_key[8:0] )
+            'h016 :  key_start_1p   <= pressed;            // 1
+            'h01E :  key_start_2p   <= pressed;            // 2
+            'h02E :  key_coin_a     <= pressed;            // 5
+            'h036 :  key_coin_b     <= pressed;            // 6
+            'h006 :  key_test       <= key_test ^ pressed; // f2
+            'h004 :  key_reset      <= pressed;            // f3
+            'h046 :  key_service    <= pressed;            // 9
+            'h02C :  key_tilt       <= pressed;            // t
+            'h04D :  key_pause      <= pressed;            // p
+
+            'h175 :  key_p1_up      <= pressed;            // up
+            'h172 :  key_p1_down    <= pressed;            // down
+            'h16B :  key_p1_left    <= pressed;            // left
+            'h174 :  key_p1_right   <= pressed;            // right
+            'h014 :  key_p1_a       <= pressed;            // lctrl
+            'h011 :  key_p1_b       <= pressed;            // lalt
+            'h029 :  key_p1_c       <= pressed;            // spacebar
+
+            'h02D :  key_p2_up      <= pressed;            // r
+            'h02B :  key_p2_down    <= pressed;            // f
+            'h023 :  key_p2_left    <= pressed;            // d
+            'h034 :  key_p2_right   <= pressed;            // g
+            'h01C :  key_p2_a       <= pressed;            // a
+            'h01B :  key_p2_b       <= pressed;            // s
+            'h015 :  key_p2_c       <= pressed;            // q
+
+        endcase
+    end
+end
+
+wire pll_locked;
+
+wire clk_sys;
+wire turbo_68k = status[15];
+reg  clk_3_5M, clk_7M, clk_10M, clk_14M;
+
+wire  clk_70M;
+
+pll pll
+(
+    .refclk(CLK_50M),
+    .rst(0),
+    .outclk_0(clk_sys),
+    .outclk_1(clk_70M),
+    .locked(pll_locked)
+);
+
+assign    SDRAM_CLK = clk_70M;
+
+localparam  CLKSYS=70;
+
+reg [5:0] clk14_count;
+reg [5:0] clk10_count;
+reg [5:0] clk7_count;
+reg [5:0] clk_3_5_count;
+
+always @ (posedge clk_sys ) begin
+    clk_10M <= 0;
+    if ( turbo_68k == 0 ) begin
+        // standard speed 20MHz = 10MHz 68k
+        case (clk10_count)
+            1: clk_10M <= 1;
+            3: clk_10M <= 1;
+        endcase
+        if ( clk10_count == 6 ) begin
+            clk10_count <= 0;
+        end else if ( pause_cpu == 0 ) begin
+            clk10_count <= clk10_count + 1;
+        end
+    end else begin
+        // standard speed 35MHz = 17.5MHz 68k
+        case (clk10_count)
+            1: clk_10M <= 1;
+        endcase
+        if ( clk10_count == 1 ) begin
+            clk10_count <= 0;
+        end else if ( pause_cpu == 0 ) begin
+            clk10_count <= clk10_count + 1;
+        end
+    end
+    clk_7M <= ( clk7_count == 0);
+    if ( clk7_count == 9 ) begin
+        clk7_count <= 0;
+    end else begin
+        clk7_count <= clk7_count + 1;
+    end
+    clk_14M <= ( clk14_count == 0);
+    if ( clk14_count == 4 ) begin
+        clk14_count <= 0;
+    end else begin
+        clk14_count <= clk14_count + 1;
+    end
+    clk_3_5M <= ( clk_3_5_count == 0);
+    if ( clk_3_5_count == 19 ) begin
+        clk_3_5_count <= 0;
+    end else if ( pause_cpu == 0 ) begin
+        clk_3_5_count <= clk_3_5_count + 1;
+    end
+end
+
+wire reset;
+assign reset = RESET | status[0] | (ioctl_download & !ioctl_index) | buttons[1] | key_reset;
+
+//////////////////////////////////////////////////////////////////
+wire rotate_ccw = 1;
+wire no_rotate = orientation | direct_video;
+wire video_rotated;
+
+reg [23:0] rgb;
 
 wire hbl;
 wire vbl;
 
-wire hsync;
-wire vsync;
-
 wire [8:0] hc;
 wire [8:0] vc;
 
-wire no_rotate = orientation | direct_video;
-wire video_rotated;
-wire rotate_ccw = 1;
-wire bcu_flip_cs;
-wire fcu_flip_cs;
+wire hsync;
+wire vsync;
 
-// flip is done in the rendering so leave screen_rotate flip off
-wire flip = 0;
+reg hbl_delay, vbl_delay;
 
-reg tile_flip;
-reg sprite_flip;
+always @ ( posedge clk_7M ) begin
+    hbl_delay <= hbl;
+    vbl_delay <= vbl;
+end
 
-screen_rotate screen_rotate (.*);
+video_timing video_timing (
+    .clk(clk_7M),
+    .reset(reset),
+    .crtc0(crtc[0]),
+    .crtc1(crtc[1]),
+    .crtc2(crtc[2]),
+    .crtc3(crtc[3]),
+    .hs_offset(hs_offset),
+    .vs_offset(vs_offset),
+    .hc(hc),
+    .vc(vc),
+    .hbl_delay(hbl),
+    .vbl(vbl),
+    .hsync(hsync),
+    .vsync(vsync)
+    );
+
+// PAUSE SYSTEM
+wire    pause_cpu;
+wire    hs_pause;
+
+// 8 bits per colour, 70MHz sys clk
+pause #(8,8,8,70) pause 
+(
+    .clk_sys(clk_sys),
+    .reset(reset),
+    .user_button(b_pause),
+    .pause_request(hs_pause),
+    .options(status[21:20]),
+    .pause_cpu(pause_cpu),
+    .dim_video(dim_video),
+    .OSD_STATUS(OSD_STATUS),
+    .r(rgb[23:16]),
+    .g(rgb[15:8]),
+    .b(rgb[7:0]),
+    .rgb_out(rgb_pause_out)
+);
+
+wire [23:0] rgb_pause_out;
+wire dim_video;
 
 arcade_video #(320,24) arcade_video
 (
@@ -541,123 +584,100 @@ arcade_video #(320,24) arcade_video
         .clk_video(clk_sys),
         .ce_pix(clk_7M),
 
-        .RGB_in(rgb_out[23:0]),
+        .RGB_in(rgb_pause_out),
 
-        .HBlank(hbl),
-        .VBlank(vbl),
+        .HBlank(hbl_delay),
+        .VBlank(vbl_delay),
         .HSync(hsync),
         .VSync(vsync),
 
         .fx(scan_lines)
 );
 
-/* 	Phase Accumulator Increments (Fractional Size 32, look up size 8 bit, total 40 bits)
+/*     Phase Accumulator Increments (Fractional Size 32, look up size 8 bit, total 40 bits)
     Increment Calculation - (Output Clock * 2 ^ Word Size) / Reference Clock
     Example
     NTSC = 3.579545
+    PAL =  4.43361875
     W = 40 ( 32 bit fraction, 8 bit look up reference)
     Ref CLK = 42.954544 (This could us any clock)
     NTSC_Inc = 3.579545333 * 2 ^ 40 / 96 = 40997413706
+    
 */
-// SET PAL and NTSC TIMING and pass through status bits. ** YC must be enabled in the qsf file **
-`ifdef MISTER_ENABLE_YC
-	parameter NTSC_REF = 3.579545;   
-	parameter PAL_REF = 4.43361875;
-	// Colorburst Lenth Calculation to send to Y/C Module, based on the CLK_VIDEO of the core
-	localparam [6:0] COLORBURST_START = (3.7 * (CLK_VIDEO_NTSC/NTSC_REF));
-	localparam [9:0] COLORBURST_NTSC_END = (9 * (CLK_VIDEO_NTSC/NTSC_REF)) + COLORBURST_START;
-	localparam [9:0] COLORBURST_PAL_END = (10 * (CLK_VIDEO_PAL/PAL_REF)) + COLORBURST_START;
- 
-	// Parameters to be modifed
-    parameter CLK_VIDEO_NTSC = 80; // Must be filled E.g XX.X Hz - CLK_VIDEO
-	parameter CLK_VIDEO_PAL = 80; // Must be filled E.g XX.X Hz - CLK_VIDEO
-	localparam [39:0] NTSC_PHASE_INC = 40'd56225315217; // ((NTSC_REF**2^40) / CLK_VIDEO_NTSC) - SNES Example;
-	localparam [39:0] PAL_PHASE_INC = 40'd0; // ((PAL_REF*2^40) / CLK_VIDEO_PAL)- SNES Example;
 
-	// Send Parameters to Y/C Module
-	assign CHROMA_PHASE_INC = PALFLAG ? PAL_PHASE_INC : NTSC_PHASE_INC; 
-	assign YC_EN = status[21];  // Change the status to match your configuration
-	assign PALFLAG = 0;  // if applicable, Change the status to match your configuration. 
- 	assign COLORBURST_RANGE = {COLORBURST_START, COLORBURST_NTSC_END, COLORBURST_PAL_END}; // Pass colorburst length
+// SET PAL and NTSC TIMING
+`ifdef MISTER_ENABLE_YC
+    assign CHROMA_PHASE_INC = PALFLAG ? 40'd56225315217: 40'd56225315217;
+    assign YC_EN =  status[22];
+    assign PALFLAG = status[7];
 `endif
 
-wire reset;
-assign reset = RESET | status[0] | (ioctl_download & !ioctl_index) | buttons[1] | key_reset;
+screen_rotate screen_rotate (.*);
 
-wire vid_clk = clk_7M;
+wire [9:0] sprite_adj_x = 0;
+wire [9:0] sprite_adj_y = 0;
+wire bcu_flip_cs;
+wire fcu_flip_cs;
+
+reg [1:0] adj_layer;
+reg [15:0] scroll_adj_x [3:0];
+reg [15:0] scroll_adj_y [3:0];
+reg layer_en [3:0];
+
+reg ce_pix;
+
+// flip is done in the rendering so leave screen_rotate flip off
+wire flip = 0;
+
+reg tile_flip;
+reg sprite_flip;
 
 //assign vc = vcx - vs_offset;
-
-video_timing video_timing (
-    .clk( vid_clk ),       // pixel clock
-    .reset(reset),      // reset
-
-    .crtc0(crtc[0]),
-    .crtc1(crtc[1]),
-    .crtc2(crtc[2]),
-    .crtc3(crtc[3]),
-
-    .hs_offset(hs_offset),
-    .vs_offset(vs_offset),
-
-    .hc(hc),  
-    .vc(vc),  
-
-    .hbl_delay(hbl),
-    .vbl(vbl),
-    
-    .hsync(hsync),     
-    .vsync(vsync)   
-    );
-
-
-reg  [23:0] rgb_out;
 
 // ===============================================================
 // 68000 CPU
 // ===============================================================
 
 // clock generation
-reg  fx68_phi1 = 0; 
+reg  fx68_phi1 = 0;
 wire fx68_phi2 = !fx68_phi1;
 
 // phases for 68k clock
 always @(posedge clk_sys) begin
     if ( clk_10M == 1 ) begin
-        fx68_phi1 <= ~fx68_phi1; 
+        fx68_phi1 <= ~fx68_phi1;
     end
 end
 
 // CPU outputs
-wire cpu_rw         ;    // Read = 1, Write = 0
-wire cpu_as_n       ;    // Address strobe
-wire cpu_lds_n      ;    // Lower byte strobe
-wire cpu_uds_n      ;    // Upper byte strobe
-wire cpu_E;         
-wire [2:0]cpu_fc    ;    // Processor state
-wire cpu_reset_n_o  ;    // Reset output signal
-wire cpu_halted_n   ;    // Halt output
+wire cpu_rw;        // Read = 1, Write = 0
+wire cpu_as_n;      // Address strobe
+wire cpu_lds_n;     // Lower byte strobe
+wire cpu_uds_n;     // Upper byte strobe
+wire cpu_E;
+wire [2:0]cpu_fc;   // Processor state
+wire cpu_reset_n_o; // Reset output signal
+wire cpu_halted_n;  // Halt output
 
 // CPU busses
-wire [15:0] cpu_dout       ;
-wire [23:0] cpu_a        /* synthesis keep */  ;
-reg  [15:0] cpu_din        ;    
+wire [15:0] cpu_dout;
+wire [23:0] cpu_a /* synthesis keep */;
+reg  [15:0] cpu_din;
 
 // CPU inputs
-reg  dtack_n ;         // Data transfer ack (always ready)
-reg  ipl2_n ;
+reg  dtack_n;    // Data transfer ack (always ready)
+reg  ipl2_n;
 
 wire reset_n;
-wire vpa_n = ~ ( cpu_lds_n == 0 && cpu_fc == 3'b111 ); // from outzone schematic
+wire vpa_n = ~ ( cpu_lds_n == 0 && cpu_fc == 3'b111 );    // from outzone schematic
 
-assign cpu_a[0] = reset;           // debug hack odd memory address should cause cpu exception
+assign cpu_a[0] = reset;    // debug hack odd memory address should cause cpu exception
 
 cc_shifter cc_reset (
     .clk_out(clk_10M),
     .i(reset_z80_n),
     .o(reset_n)
 );
-  
 
 fx68k fx68k (
     // input
@@ -684,8 +704,8 @@ fx68k fx68k (
     // input
     .VPAn( vpa_n ),
     .DTACKn(dtack_n ),
-    .BERRn(1'b1), 
-    .BRn(1'b1),  
+    .BERRn(1'b1),
+    .BRn(1'b1),
     .BGACKn(1'b1),
     
     .IPL0n(1'b1),
@@ -699,22 +719,19 @@ fx68k fx68k (
 );
 
 always @ (posedge clk_sys) begin
-
     if ( clk_10M == 1 ) begin
         // tell 68k to wait for valid data. 0=ready 1=wait
         // always ack when it's not program rom
-        dtack_n <= prog_rom_cs ? !prog_rom_data_valid : 0; 
-
+        dtack_n <= prog_rom_cs ? !prog_rom_data_valid : 0;
         // add dsp_ctrl_cs to cpu_din
-
         // select cpu data input based on what is active 
         cpu_din <= prog_rom_cs ? prog_rom_data :
             ram_cs ? ram_dout :
             tile_palette_cs ?  tile_palette_cpu_dout :
             sprite_palette_cs ?  sprite_palette_cpu_dout :
             shared_ram_cs ? cpu_shared_dout :
-            tile_ofs_cs ? curr_tile_ofs :  
-            sprite_ofs_cs ? curr_sprite_ofs :  
+            tile_ofs_cs ? curr_tile_ofs :
+            sprite_ofs_cs ? curr_sprite_ofs :
             tile_attr_cs ? cpu_tile_dout_attr :
             tile_num_cs ? cpu_tile_dout_num :
             sprite_0_cs ? sprite_0_dout :
@@ -726,7 +743,7 @@ always @ (posedge clk_sys) begin
             int_en_cs ? 16'hffff :
             16'd0;
     end
-end  
+end
 
 // (tms320c10fnl.pdf)
 
@@ -764,26 +781,20 @@ wire z80_wr_n;
 wire z80_rd_n;
 reg  z80_wait_n;
 
-
 wire IORQ_n;
 wire MREQ_n;
-
-
 
 always @ (posedge clk_sys) begin
     if ( reset == 1 ) begin
         z80_wait_n <= 0;
-        sound_wr <= 0 ;
+        sound_wr <= 0;
     end else if ( clk_3_5M == 1 ) begin
-
         z80_wait_n <= 1;
-        
         if ( ioctl_download | ( z80_rd_n == 0 && sound_rom_1_data_valid == 0 && sound_rom_1_cs == 1 ) ) begin
             // wait if rom is selected and data is not yet available
             z80_wait_n <= 0;
-        end 
-
-        if ( z80_rd_n == 0 ) begin 
+        end
+        if ( z80_rd_n == 0 ) begin
             if ( sound_rom_1_cs ) begin
                 if ( sound_rom_1_data_valid ) begin
                     z80_din <= sound_rom_1_data;
@@ -793,27 +804,26 @@ always @ (posedge clk_sys) begin
             end else if ( sound_ram_1_cs ) begin
                 z80_din <= z80_shared_dout;
             end else if ( z80_p1_cs ) begin
-                z80_din <= { 1'b0, p1_buttons, p1_right, p1_left, p1_down, p1_up };
+                z80_din <= p1;
             end else if ( z80_p2_cs ) begin
-                z80_din <= { 1'b0, p2_buttons, p2_right, p2_left, p2_down, p2_up };
+                z80_din <= p2;
             end else if ( z80_dswa_cs ) begin
-                z80_din <= sw[0];
+                z80_din <= z80_dswa;
             end else if ( z80_dswb_cs ) begin
-                z80_din <= sw[1];
+                z80_din <= z80_dswb;
             end else if ( z80_tjump_cs ) begin
-                z80_din <= sw[3];
+                z80_din <= z80_tjump;
             end else if ( z80_system_cs ) begin
-                z80_din <= { 1'b0, p2_start, p1_start, p2_coin, p1_coin, service, key_tilt, key_service };
+                z80_din <= system;
             end else if ( z80_sound0_cs ) begin
                 z80_din <= opl_dout;
             end else begin
                 z80_din <= 8'h00;
             end
         end
-        
-        sound_wr <= 0 ;
-        if ( z80_wr_n == 0 ) begin 
-            if ( z80_sound0_cs | z80_sound1_cs ) begin    
+        sound_wr <= 0;
+        if ( z80_wr_n == 0 ) begin
+            if ( z80_sound0_cs | z80_sound1_cs ) begin
                 sound_data  <= z80_dout;
                 sound_addr <= { 1'b0, z80_sound1_cs }; // pad for opl3.  opl2 is single bit address
                 sound_wr <= 1;
@@ -823,8 +833,8 @@ always @ (posedge clk_sys) begin
     end
 end
 
-reg  [1:0] sound_addr ;
-reg  [7:0] sound_data ;
+reg  [1:0] sound_addr;
+reg  [7:0] sound_data;
 reg sound_wr;
 
 wire [7:0] opl_dout;
@@ -832,7 +842,7 @@ wire opl_irq_n;
 
 reg signed [15:0] sample;
 
-assign AUDIO_S = 1'b1 ;
+assign AUDIO_S = 1'b1;
 
 wire opl_sample_clk;
 
@@ -862,7 +872,7 @@ end
 T80pa u_cpu(
     .RESET_n    ( reset_n ),
     .CLK        ( clk_sys ),
-    .CEN_p      ( clk_3_5M ),     
+    .CEN_p      ( clk_3_5M ),
     .CEN_n      ( ~clk_3_5M ),
 
     .WAIT_n     ( z80_wait_n ), // don't wait if data is valid or rom access isn't selected
@@ -901,9 +911,9 @@ wire tile_attr_cs;
 wire tile_num_cs;
 wire scroll_cs;
 wire shared_ram_cs;
-wire frame_done_cs; // word
+wire frame_done_cs;    // word
 wire tile_palette_cs;
-wire sprite_palette_cs ;
+wire sprite_palette_cs;
 wire sprite_ofs_cs;
 wire sprite_cs; // *** offset needs to be auto-incremented
 wire sprite_size_cs; // *** offset needs to be auto-incremented
@@ -922,60 +932,46 @@ wire z80_tjump_cs;
 wire z80_sound0_cs;
 wire z80_sound1_cs;
 
-
-// Select PCB Title and set chip select lines
-reg   [7:0] pcb;
-wire        tile_priority_type;
-wire [15:0] scroll_y_offset;
-
-always @(posedge clk_sys) begin
-    if (ioctl_wr && (ioctl_index==1)) begin
-        pcb <= ioctl_dout;
-    end
-end
-
 chip_select cs (.*);
 
-wire sprite_0_cs      = ( curr_sprite_ofs[1:0] == 2'b00 ) & sprite_cs ;
-wire sprite_1_cs      = ( curr_sprite_ofs[1:0] == 2'b01 ) & sprite_cs ;
-wire sprite_2_cs      = ( curr_sprite_ofs[1:0] == 2'b10 ) & sprite_cs ;
-wire sprite_3_cs      = ( curr_sprite_ofs[1:0] == 2'b11 ) & sprite_cs ;
+wire sprite_0_cs      = ( curr_sprite_ofs[1:0] == 2'b00 ) & sprite_cs;
+wire sprite_1_cs      = ( curr_sprite_ofs[1:0] == 2'b01 ) & sprite_cs;
+wire sprite_2_cs      = ( curr_sprite_ofs[1:0] == 2'b10 ) & sprite_cs;
+wire sprite_3_cs      = ( curr_sprite_ofs[1:0] == 2'b11 ) & sprite_cs;
 
 reg reset_z80_n;
 wire reset_z80_cs;
-wire sound_rom_1_cs   = ( MREQ_n == 0 && z80_addr <= 16'h7fff )  ;
-wire sound_ram_1_cs   = ( MREQ_n == 0 && z80_addr >= 16'h8000 && z80_addr <= 16'h87ff ) ;
+wire sound_rom_1_cs   = ( MREQ_n == 0 && z80_addr <= 16'h7fff );
+wire sound_ram_1_cs   = ( MREQ_n == 0 && z80_addr >= 16'h8000 && z80_addr <= 16'h87ff );
 
-reg int_en ;
-reg int_ack ;
+reg int_en;
+reg int_ack;
 
 reg [1:0] vbl_sr;
-// vblank interrupt on rising vbl 
+
+// vblank interrupt on rising vbl
 always @ (posedge clk_sys ) begin
     if ( reset == 1 ) begin
-        ipl2_n <= 1 ;
+        ipl2_n <= 1;
         int_ack <= 0;
     end else begin
         vbl_sr <= { vbl_sr[0], vbl };
-
         if ( clk_10M == 1 ) begin
             int_ack <= ( cpu_as_n == 0 ) && ( cpu_fc == 3'b111 ); // cpu acknowledged the interrupt
         end
-
-        if ( vbl_sr == 2'b01 ) begin // rising edge
+        if ( vbl_sr == 2'b01 ) begin// rising edge
             ipl2_n <= ~int_en;
         end else if ( int_ack == 1 || vbl_sr == 2'b10 ) begin
-            ipl2_n <= 1 ;
+            ipl2_n <= 1;
         end
     end
 end
 
+reg [15:0] scroll_x [3:0];
+reg [15:0] scroll_y [3:0];
 
-reg [15:0] scroll_x [3:0] ;
-reg [15:0] scroll_y [3:0] ;
-
-reg [15:0] scroll_x_latch [3:0] ;
-reg [15:0] scroll_y_latch [3:0] ;
+reg [15:0] scroll_x_latch [3:0];
+reg [15:0] scroll_y_latch [3:0];
 
 reg inc_sprite_ofs;
 
@@ -988,76 +984,59 @@ always @ (posedge clk_sys) begin
     end else begin
         if ( pcb != 3 && pcb != 4 ) begin
             // if the pcb uses the 68k reset pin to drive the reset line
-            reset_z80_n <= cpu_reset_n_o ;
+            reset_z80_n <= cpu_reset_n_o;
         end
-        
         // write asserted and rising cpu clock
-        if (  clk_10M == 1 && cpu_rw == 0 ) begin        
-            
+        if (  clk_10M == 1 && cpu_rw == 0 ) begin
             if ( tile_ofs_cs ) begin
                 curr_tile_ofs <= cpu_dout;
             end
-
             if ( int_en_cs ) begin
                 int_en <= cpu_dout[0];
             end
-
             if ( crtc_cs ) begin
                 crtc[ cpu_a[2:1] ] <= cpu_dout;
             end
-
             if ( bcu_flip_cs ) begin
-                tile_flip <= cpu_dout[0] ;
+                tile_flip <= cpu_dout[0];
             end
-
             if ( fcu_flip_cs ) begin
-                sprite_flip <= cpu_dout[15] ;
+                sprite_flip <= cpu_dout[15];
             end
-            
-//             
 //            if ( sprite_ram_cs ) begin
 //                // rally bike
 //                curr_sprite_ofs <= { 6'b0, cpu_dout[9:0] };
 //            end
-
             if ( sprite_ofs_cs ) begin
                 // mask out valid range
                 curr_sprite_ofs <= { 6'b0, cpu_dout[9:0] };
             end
-
             if ( scroll_ofs_x_cs ) begin
                 scroll_ofs_x <= cpu_dout;
             end
-
             if ( scroll_ofs_y_cs ) begin
                 scroll_ofs_y <= cpu_dout;
             end
-            
             // x layer values are even addresses
             if ( scroll_cs ) begin
                 if ( cpu_a[1] == 0 ) begin
-                    scroll_x[ cpu_a[3:2] ] <= cpu_dout[15:7] ;
+                    scroll_x[ cpu_a[3:2] ] <= cpu_dout[15:7];
                 end else begin
-                    scroll_y[ cpu_a[3:2] ] <= cpu_dout[15:7] ;
+                    scroll_y[ cpu_a[3:2] ] <= cpu_dout[15:7];
                 end
             end
-            
             // offset needs to be auto-incremented
             if ( sprite_cs | sprite_size_cs ) begin
                 inc_sprite_ofs <= 1;
             end
-
-            
-            if ( reset_z80_cs ) begin 
+            if ( reset_z80_cs ) begin
                 // the pcb writes to a latch to control the reset 
                 reset_z80_n <= cpu_dout[0];
             end
-            
         end
-
         // write lasts multiple cpu clocks so limit to one increment per write signal
         if ( inc_sprite_ofs == 1 && cpu_rw == 1 ) begin
-            curr_sprite_ofs <= curr_sprite_ofs + 1;        
+            curr_sprite_ofs <= curr_sprite_ofs + 1;
             inc_sprite_ofs <= 0;
         end
     end
@@ -1065,7 +1044,7 @@ end
 
 reg [15:0] scroll_x_total [3:0];
 reg [15:0] scroll_y_total [3:0];
-  
+
 wire [15:0] ram_dout;
 wire [9:0]  tile_palette_addr;
 wire [15:0] tile_palette_cpu_dout;
@@ -1091,7 +1070,6 @@ wire [15:0] sprite_3_dout;
 wire [15:0] sprite_size_dout;
 wire [15:0] sprite_size_cpu_dout;
 
-
 wire [31:0] tile_attr_dout;
 wire [15:0] sprite_attr_0_dout;
 wire [15:0] sprite_attr_1_dout;
@@ -1099,33 +1077,32 @@ wire [15:0] sprite_attr_2_dout;
 wire [15:0] sprite_attr_3_dout;
 
 wire [15:0] sprite_size_buf_dout;
-wire [15:0] sprite_attr_0_buf_dout ;
-wire [15:0] sprite_attr_1_buf_dout ;
-wire [15:0] sprite_attr_2_buf_dout ;
-wire [15:0] sprite_attr_3_buf_dout ;
-
+wire [15:0] sprite_attr_0_buf_dout;
+wire [15:0] sprite_attr_1_buf_dout;
+wire [15:0] sprite_attr_2_buf_dout;
+wire [15:0] sprite_attr_3_buf_dout;
 
 reg [15:0] sprite_buf_din;
 
-reg [14:0] tile ;
+reg [14:0] tile;
 
 reg [7:0] sprite_num;
 reg [7:0] sprite_num_copy;
 
 reg [3:0] tile_draw_state;
 
-reg [2:0] layer;  // 4 layers + 1 for initial background
+reg [2:0] layer;    // 4 layers + 1 for initial background
 
-wire [14:0] tile_idx         = tile_attr[14:0] ;
-wire  [3:0] tile_priority    = tile_attr[31:28] ;
-wire  [5:0] tile_palette_idx = tile_attr[21:16] ;
-wire        tile_hidden      = tile_attr[15] ;
+wire [14:0] tile_idx         = tile_attr[14:0];
+wire  [3:0] tile_priority    = tile_attr[31:28];
+wire  [5:0] tile_palette_idx = tile_attr[21:16];
+wire        tile_hidden      = tile_attr[15];
 
 reg  [15:0] fb_dout;
 wire [15:0] tile_fb_out;
 wire [15:0] sprite_fb_out;
 reg  [15:0] fb_din;
-reg  [15:0] sprite_fb_din ;
+reg  [15:0] sprite_fb_din;
 
 reg tile_fb_w;
 reg sprite_fb_w;
@@ -1140,7 +1117,7 @@ dual_port_ram #(.LEN(1024), .DATA_WIDTH(16)) tile_line_buffer (
     .q_a ( ),
 
     .clock_b ( clk_sys ),
-    .address_b ( fb_addr_r ),  
+    .address_b ( fb_addr_r ),
     .wren_b ( 0 ),
 //    .data_b ( ),
     .q_b ( tile_fb_out )
@@ -1154,7 +1131,7 @@ dual_port_ram #(.LEN(1024), .DATA_WIDTH(16)) sprite_line_buffer (
     .q_a ( ),
 
     .clock_b ( clk_sys ),
-    .address_b ( fb_addr_r ),  
+    .address_b ( fb_addr_r ),
     .wren_b ( 0 ),
 //    .data_b ( ),
     .q_b ( sprite_fb_out )
@@ -1165,58 +1142,54 @@ reg [9:0] x;
 
 reg [9:0] y_ofs;
 
-
-
 // y needs to be one line ahaed of the visible line
 // render the first line at the end of the previous frame
 // this depends on the timing that the sprite list is valid
 // sprites values are copied at the start of vblank (line 240)
 
-
 // global offsets
-wire [9:0] x_ofs_dx         = 495 + { ~layer[1:0], 1'b0 } ; 
-wire [9:0] y_ofs_dx         = 257 ;
-wire [9:0] x_ofs_dx_flipped =  17 - { ~layer[1:0], 1'b0 } ; 
-wire [9:0] y_ofs_dx_flipped = 255 ;
+wire [9:0] x_ofs_dx         = 495 + { ~layer[1:0], 1'b0 };
+wire [9:0] y_ofs_dx         = 257;
+wire [9:0] x_ofs_dx_flipped =  17 - { ~layer[1:0], 1'b0 };
+wire [9:0] y_ofs_dx_flipped = 255;
 
 // calculate scrolling
-wire [9:0] tile_x_unflipped = scroll_x_latch[layer[1:0]] + x_ofs_dx ;
+wire [9:0] tile_x_unflipped = scroll_x_latch[layer[1:0]] + x_ofs_dx;
 wire [9:0] tile_y_unflipped = scroll_y_latch[layer[1:0]] + y_ofs_dx + scroll_y_offset;
 wire [9:0] tile_x_flipped   = 319 + scroll_x_latch[layer[1:0]] + x_ofs_dx_flipped; 
-wire [9:0] tile_y_flipped   = 239 + scroll_y_latch[layer[1:0]] + y_ofs_dx_flipped + scroll_y_offset; 
-            
-// reverse tiles when flipped            
+wire [9:0] tile_y_flipped   = 239 + scroll_y_latch[layer[1:0]] + y_ofs_dx_flipped + scroll_y_offset;
+
+// reverse tiles when flipped
 wire [9:0] curr_x = tile_flip ? tile_x_flipped - x :  tile_x_unflipped + x;
 wire [9:0] curr_y = tile_flip ? tile_y_flipped - y :  tile_y_unflipped + y;
 
-reg  [9:0] y ;
-wire [9:0] y_flipped    = ( sprite_flip ? (240 - y ) + scroll_y_offset : y + scroll_y_offset) ;
-wire [9:0] sprite_buf_x = sprite_flip ? 320 - (sprite_x + sprite_pos_x ) : sprite_x + sprite_pos_x ;     // offset from left of frame
+reg  [9:0] y;
+wire [9:0] y_flipped = ( sprite_flip ? (240 - y ) + scroll_y_offset : y + scroll_y_offset);
+wire [9:0] sprite_buf_x = sprite_flip ? 320 - (sprite_x + sprite_pos_x ) : sprite_x + sprite_pos_x;    // offset from left of frame
 
-reg [3:0] draw_state ;
-reg [3:0] sprite_state ;
-reg [3:0] tile_copy_state ;
-reg [3:0] sprite_copy_state ;
+reg [3:0] draw_state;
+reg [3:0] sprite_state;
+reg [3:0] tile_copy_state;
+reg [3:0] sprite_copy_state;
 
-// pixel 4 bit colour 
-wire [3:0] tile_pix ;
+// pixel 4 bit colour
+wire [3:0] tile_pix;
 assign tile_pix = { tile_data[7-curr_x[2:0]], tile_data[15-curr_x[2:0]], tile_data[23-curr_x[2:0]], tile_data[31-curr_x[2:0]] };
 
 wire [2:0] sprite_bit = sprite_x[2:0];
-wire [3:0] sprite_pix ;
+wire [3:0] sprite_pix;
 assign sprite_pix = { sprite_data[7-sprite_bit], sprite_data[15-sprite_bit], sprite_data[23-sprite_bit], sprite_data[31-sprite_bit] };
 
-// two lines of buffer alternate 
+// two lines of buffer alternate
 reg  [9:0] tile_fb_addr_w;
-wire [9:0] fb_addr_r        = {vc[0], 9'b0 } + hc ;
+wire [9:0] fb_addr_r = {vc[0], 9'b0 } + hc;
 
-reg [9:0] sprite_fb_addr_w ;
+reg [9:0] sprite_fb_addr_w;
 
 reg [31:0] tile_attr;
 
-
 // two lines worth for 4 layers (~8k)
-// [15:14] = layer.  
+// [15:14] = layer.
 // [13:10] = prioity
 // [9:4] = palette offset
 // [3:0] = tile colour index.
@@ -1225,7 +1198,7 @@ reg [3:0] tile_priority_buf   [327:0];
 reg [3:0] sprite_priority_buf [327:0];
 
 reg  [9:0] sprite_x;         // offset from left side of sprite
-reg  [9:0] sprite_y; 
+reg  [9:0] sprite_y;
 
 wire [14:0] sprite_index    = sprite_attr_0_buf_dout[14:0] /* synthesis keep */;
 wire        sprite_hidden   = sprite_attr_0_buf_dout[15] /* synthesis keep */;
@@ -1238,13 +1211,12 @@ wire [9:0] sprite_pos_x  = sprite_adj_x + (( sprite_attr_2_buf_dout[15:7] < 9'h1
 wire [9:0] sprite_pos_y  = sprite_adj_y + (( sprite_attr_3_buf_dout[15:7] < 9'h180 ) ? sprite_attr_3_buf_dout[15:7]  : ( sprite_attr_3_buf_dout[15:7] - 10'h200));
 
 // valid 1 cycle after sprite attr ready
-wire [8:0] sprite_height    = { sprite_size_buf_dout[7:4], 3'b0 } /* synthesis keep */;  // in pixels
+wire [8:0] sprite_height    = { sprite_size_buf_dout[7:4], 3'b0 } /* synthesis keep */;    // in pixels
 wire [8:0] sprite_width     = { sprite_size_buf_dout[3:0], 3'b0 } /* synthesis keep */;
 
 reg [7:0] sprite_buf_num;
 
 always @ (posedge clk_sys) begin
-    
     if ( reset == 1 ) begin
         sprite_state <= 0;
         draw_state <= 0;
@@ -1262,87 +1234,80 @@ always @ (posedge clk_sys) begin
             sprite_fb_w <= 1;
             sprite_state <= 1;
             sprite_fb_din <= 0;
-            sprite_fb_addr_w <= { y[0], 9'b0 }  ;  
-        end else if ( sprite_state == 1 ) begin           
+            sprite_fb_addr_w <= { y[0], 9'b0 };
+        end else if ( sprite_state == 1 ) begin
             // erase line buffer
-            sprite_fb_addr_w <= { y[0], 9'b0 } + sprite_x ;  
+            sprite_fb_addr_w <= { y[0], 9'b0 } + sprite_x;
             sprite_priority_buf[sprite_x] <= 0;
             if ( sprite_x < 320 ) begin
                 sprite_x <= sprite_x + 1;
             end else begin
                 sprite_x <= 0;
                 sprite_fb_w <= 0;
-                sprite_state <= 2 ;
+                sprite_state <= 2;
             end
-        end else if ( sprite_state == 2 ) begin     
+        end else if ( sprite_state == 2 ) begin
             // sprite num is valid now
-            sprite_state <= 3 ;
-        end else if ( sprite_state == 3 ) begin                
-            // sprite attr valid now.  
+            sprite_state <= 3;
+        end else if ( sprite_state == 3 ) begin
+            // sprite attr valid now.
             // delay one more cycle to read sprite size
-            sprite_state <= 4 ;
-        end else if ( sprite_state == 4 ) begin        
+            sprite_state <= 4;
+        end else if ( sprite_state == 4 ) begin
             // start loop
             sprite_rom_cs <= 0;
             sprite_fb_w <= 0;
-
-            sprite_y <=  y_flipped - sprite_pos_y ;
-            
-            
+            sprite_y <=  y_flipped - sprite_pos_y;
             // is sprite visible and is current y in sprite y range
             // sprite pos can be negative?
-        if ( sprite_hidden == 0 && sprite_width > 0 && ( $signed(y_flipped) >= $signed(sprite_pos_y) ) && $signed(y_flipped) < ( $signed(sprite_pos_y) + $signed(sprite_height) ) ) begin            
-                sprite_state <= 5 ;
-            end else if ( sprite_num > 0 ) begin 
+        if ( sprite_hidden == 0 && sprite_width > 0 && ( $signed(y_flipped) >= $signed(sprite_pos_y) ) && $signed(y_flipped) < ( $signed(sprite_pos_y) + $signed(sprite_height) ) ) begin
+                sprite_state <= 5;
+            end else if ( sprite_num > 0 ) begin
                 sprite_num <= sprite_num - 1;
-                sprite_state <= 2 ;
+                sprite_state <= 2;
             end else begin
-                sprite_state <= 15 ;
+                sprite_state <= 15;
             end
-
-        end else if ( sprite_state == 5 ) begin        
+        end else if ( sprite_state == 5 ) begin
             sprite_rom_addr <= { sprite_index, 3'b0 } + { sprite_x[8:3], 3'b0 } + ( sprite_y[8:3] * sprite_width ) + sprite_y[2:0];
             sprite_rom_cs <= 1;
-            sprite_state <= 6 ;            
-        end else if ( sprite_state == 6 ) begin        
+            sprite_state <= 6;
+        end else if ( sprite_state == 6 ) begin
             // wait for sprite bitmap ready
             if ( sprite_rom_data_valid ) begin
                 // latch data and deassert cs
                 sprite_data <= sprite_rom_data;
                 sprite_rom_cs <= 0;
                 sprite_state <= 7;
-            end 
-        end else if ( sprite_state == 7 ) begin                    
+            end
+        end else if ( sprite_state == 7 ) begin
             sprite_fb_w <= 0;
             // draw if pixel value not zero and priority >= previous sprite data
-            if ( sprite_pix > 0 && sprite_priority_buf[sprite_buf_x] == 0 ) begin  
-                sprite_fb_din <= { 2'b11, sprite_priority, sprite_pal_addr, sprite_pix };   
-                sprite_fb_addr_w <= { y[0], 9'b0 } + sprite_buf_x ;            
-                sprite_priority_buf[sprite_buf_x] <= sprite_priority ;
+            if ( sprite_pix > 0 && sprite_priority_buf[sprite_buf_x] == 0 ) begin 
+                sprite_fb_din <= { 2'b11, sprite_priority, sprite_pal_addr, sprite_pix };
+                sprite_fb_addr_w <= { y[0], 9'b0 } + sprite_buf_x;
+                sprite_priority_buf[sprite_buf_x] <= sprite_priority;
                 sprite_fb_w <= 1;
-            end 
-
+            end
             if ( sprite_x < ( sprite_width - 1 ) ) begin
                 sprite_x <= sprite_x + 1;
-
                 if ( sprite_x[2:0] == 7 ) begin
                     // do recalc bitmap address
-                    sprite_state <= 5 ;
+                    sprite_state <= 5;
                 end
             end else if ( sprite_num > 0 ) begin
                 sprite_num <= sprite_num - 1;
                 sprite_x <= 0;
                 // need to load new attributes and size
-                sprite_state <= 2 ;
+                sprite_state <= 2;
             end else begin
                 // tile state machine will reset sprite_state when line completes.
                 sprite_state <= 15; // done
-            end            
+            end
         end
-        
         // copy tile ram and scroll info
         // not sure if this is needed. need to check to see when tile ram is updated.
-        if (  tile_copy_state == 0 && vc == 256  ) begin 
+        if (  tile_copy_state == 0 && vc == 256  ) begin
             tile_copy_state <= 1;
         end else begin
             // copy scroll registers
@@ -1350,35 +1315,29 @@ always @ (posedge clk_sys) begin
             scroll_x_latch[1] <= scroll_x[1] - scroll_ofs_x;
             scroll_x_latch[2] <= scroll_x[2] - scroll_ofs_x;
             scroll_x_latch[3] <= scroll_x[3] - scroll_ofs_x;
-
             scroll_y_latch[0] <= scroll_y[0] - scroll_ofs_y;
             scroll_y_latch[1] <= scroll_y[1] - scroll_ofs_y;
             scroll_y_latch[2] <= scroll_y[2] - scroll_ofs_y;
             scroll_y_latch[3] <= scroll_y[3] - scroll_ofs_y;
-
-        end 
-        
+        end
         // copy sprite attr/size to buffer
-        if (  sprite_copy_state == 0 && vc == 240  ) begin 
+        if (  sprite_copy_state == 0 && vc == 240  ) begin
             sprite_copy_state <= 1;
             sprite_buf_w <= 0;
             sprite_num_copy <= 8'h00;
-        end else if ( sprite_copy_state == 1 ) begin 
+        end else if ( sprite_copy_state == 1 ) begin
             sprite_num_copy <= sprite_num_copy + 1;
             sprite_buf_num <= sprite_num_copy;
             sprite_buf_w <= 1;
-
             // wait for read from source
-            if ( sprite_num_copy == 8'hff ) begin 
-                sprite_copy_state <= 2 ;
+            if ( sprite_num_copy == 8'hff ) begin
+                sprite_copy_state <= 2;
             end
         end else if ( sprite_copy_state == 2 ) begin
             sprite_buf_w <= 0;
-            sprite_copy_state <= 0 ;
+            sprite_copy_state <= 0;
         end
-
         // tile state machine
-
         if ( draw_state == 0 && vc == { crtc[2][7:0], 1'b1 } ) begin
             layer <= 4; // layer 4 is layer 0 but draws hidden and transparent
             y <= 0;
@@ -1386,110 +1345,97 @@ always @ (posedge clk_sys) begin
             sprite_state <= 0;
         end else if ( draw_state == 2 ) begin
             x <= 0;
-
-            x_ofs <= scroll_x_latch[layer[1:0]] ;
-            y_ofs <= scroll_y_latch[layer[1:0]] ;
-
+            x_ofs <= scroll_x_latch[layer[1:0]];
+            y_ofs <= scroll_y_latch[layer[1:0]];
             // latch offset info
             draw_state <= 3;
             tile_draw_state <= 0;
         end else if ( draw_state == 3 ) begin
-
             if ( tile_draw_state == 0 ) begin
                 tile <=  { layer[1:0], curr_y[8:3], curr_x[8:3] };  // works
-                
                 tile_draw_state <= 4'h1;
             end else if ( tile_draw_state == 1 ) begin
-                
-                
                 tile_draw_state <= 2;
-            end else if ( tile_draw_state == 2 ) begin            
-
+            end else if ( tile_draw_state == 2 ) begin
                 // latch attribute
                 tile_attr <= tile_attr_dout;
                 if ( layer == 4 || tile_attr_dout[15] == 0 ) begin
                     tile_draw_state <= 3;
                 end else begin
-                    if ( x < 320 ) begin // 319
+                    if ( x < 320 ) begin// 319
                         tile_draw_state <= 3;
                         // do we need to read another tile?
                         // last pixel of this tile changes based on flip direction
                         if ( curr_x[2:0] == ( tile_flip ? 0 : 7)  ) begin
                             draw_state <= 3; 
                             tile_draw_state <= 0;
-                        end 
-                        x <= x + 1 ;
+                        end
+                        x <= x + 1;
                     end else if ( layer > 0 ) begin
                         layer <= layer - 1;
                         tile_fb_w <= 0;
                         draw_state <= 2;
                     end else begin
                         // done
-                        tile_draw_state <= 7 ;
+                        tile_draw_state <= 7;
                         tile_fb_w <= 0;
-                    end                    
+                    end
                 end
             end else if ( tile_draw_state == 3 ) begin
                 // read bitmap info
                 tile_rom_cs <= 1;
-                tile_rom_addr <= { tile_idx, curr_y[2:0] }  ;  
+                tile_rom_addr <= { tile_idx, curr_y[2:0] };
                 tile_draw_state <= 4;
-
-            end else if ( tile_draw_state == 4 ) begin     
-
+            end else if ( tile_draw_state == 4 ) begin
                 // wait for bitmap ram ready
                 if ( tile_rom_data_valid ) begin
                     // latch data and deassert cs
                     tile_data <= tile_rom_data;
-                    tile_draw_state <= 5 ;
+                    tile_draw_state <= 5;
                     tile_rom_cs <= 0;
                 end
-            end else if ( tile_draw_state == 5 ) begin   
-             
+            end else if ( tile_draw_state == 5 ) begin
                 tile_fb_w <= 0; 
-                tile_fb_addr_w   <= { y[0], 9'b0 } + x ;
-                
+                tile_fb_addr_w   <= { y[0], 9'b0 } + x;
                 // force render of first layer.
                 // if layer == 4 then tile_pix == 0 is not transparent
                 // layer 4 is really layer 0
-                if ( layer == 4 ) begin            
+                if ( layer == 4 ) begin
                     tile_priority_buf[x] <= 0; //tile_pix == 0 ? 0  : tile_priority;
                     //fb_din <= { layer[1:0], tile_priority, tile_palette_idx,  tile_pix };
                     fb_din <= { layer[1:0], 4'b0, tile_palette_idx,  tile_pix };
                     tile_fb_w <= 1;
                 end else if (tile_hidden == 0 && tile_pix > 0 && tile_priority > 0 && tile_priority >= tile_priority_buf[x] ) begin
                     tile_priority_buf[x] <= tile_priority;
-                    
                     // if tile hidden then make the pallette index 0. ie transparent
                     fb_din <= { layer[1:0], tile_priority, tile_palette_idx,  tile_pix };
                     tile_fb_w <= 1;
                 end
-                
-                if ( x < 320 ) begin // 319
+                if ( x < 320 ) begin// 319
                     // do we need to read another tile?
                     // last pixel of this tile changes based on flip direction
                     if ( curr_x[2:0] == ( tile_flip ? 0 : 7)  ) begin
                         draw_state <= 3; 
                         tile_draw_state <= 0;
                     end 
-                    x <= x + 1 ;
+                    x <= x + 1;
                 end else if ( layer > 0 ) begin
                     layer <= layer - 1;
                     tile_fb_w <= 0;
                     draw_state <= 2;
                 end else begin
                     // done
-                    tile_draw_state <= 7 ;
+                    tile_draw_state <= 7;
                     tile_fb_w <= 0;
                 end
-            end else if ( tile_draw_state == 7 ) begin      
+            end else if ( tile_draw_state == 7 ) begin
                 // wait for next line or quit
                 if ( y == 239 ) begin
-                    draw_state <= 0;            
+                    draw_state <= 0;
                 end else if ( hc == 449 ) begin
                     y <= y + 1;
                     draw_state <= 2;
-                    sprite_state <= 0 ;
+                    sprite_state <= 0;
                     layer <= 4;
                 end
             end
@@ -1497,7 +1443,7 @@ always @ (posedge clk_sys) begin
     end
 end
 
-// render 
+// render
 reg draw_sprite;
 
 // two lines worth for 4 layers (~8k)
@@ -1515,20 +1461,19 @@ wire [7:0] dac [0:31] = '{0,12,25,36,50,61,73,83,91,100,111,120,131,139,149,157,
 
 always @ (posedge clk_sys) begin
     if ( clk7_count == 4 ) begin
-        tile_palette_addr  <= tile_fb_out[9:0] ; 
-        sprite_palette_addr <= sprite_fb_out[9:0] ; 
+        tile_palette_addr  <= tile_fb_out[9:0];
+        sprite_palette_addr <= sprite_fb_out[9:0];
     end else if ( clk7_count == 6 ) begin
         // if palette index is zero then it's from layer 3 and is transparent render as blank (black).
-        rgb_out <= { dac[tile_palette_dout[4:0]], dac[tile_palette_dout[9:5]], dac[tile_palette_dout[14:10]] };
+        rgb <= { dac[tile_palette_dout[4:0]], dac[tile_palette_dout[9:5]], dac[tile_palette_dout[14:10]] };
 
         // if not transparent and sprite is higher priority 
-        if ( sprite_fb_out[3:0] > 0 && (sprite_fb_out[13:10] > tile_fb_out[13:10]) ) begin 
+        if ( sprite_fb_out[3:0] > 0 && (sprite_fb_out[13:10] > tile_fb_out[13:10]) ) begin
             // draw sprite
-            rgb_out <= { dac[sprite_palette_dout[4:0]], dac[sprite_palette_dout[9:5]], dac[sprite_palette_dout[14:10]] };
+            rgb <= { dac[sprite_palette_dout[4:0]], dac[sprite_palette_dout[9:5]], dac[sprite_palette_dout[14:10]] };
         end
     end
 end
-
 
 // tile data buffer
 
@@ -1537,7 +1482,6 @@ reg [31:0] tile_buf_din;
 reg [31:0] tile_buf_dout;
 reg [13:0] tile_buf_addr;
 
-
 dual_port_ram #(.LEN(16384), .DATA_WIDTH(32)) ram_tile_buf (
     .clock_a ( clk_sys ),
     .address_a ( tile[13:0] ),
@@ -1545,10 +1489,10 @@ dual_port_ram #(.LEN(16384), .DATA_WIDTH(32)) ram_tile_buf (
     .data_a ( tile_attr_dout ),
 
     .clock_b ( clk_sys ),
-    .address_b ( tile[13:0] ),  // only read the tile # for now
+    .address_b ( tile[13:0] ),    // only read the tile # for now
     .wren_b ( 0 ),
     .q_b ( tile_buf_dout )
-    ); 
+    );
 
 // tile attribute ram.  each tile attribute is 2 16bit words
 // pppp ---- --cc cccc httt tttt tttt tttt = Tile number (0 - $7fff)
@@ -1561,9 +1505,9 @@ dual_port_ram #(.LEN(16384), .DATA_WIDTH(16)) ram_tile_h (
     .q_a ( cpu_tile_dout_attr ),
 
     .clock_b ( clk_sys ),
-    .address_b ( tile[13:0] ),  // only read the tile # for now
+    .address_b ( tile[13:0] ),    // only read the tile # for now
     .wren_b ( 0 ),
-    .q_b ( tile_attr_dout[31:16] )   
+    .q_b ( tile_attr_dout[31:16] )
     );
     
 dual_port_ram #(.LEN(16384), .DATA_WIDTH(16)) ram_tile_l (
@@ -1574,12 +1518,11 @@ dual_port_ram #(.LEN(16384), .DATA_WIDTH(16)) ram_tile_l (
     .q_a ( cpu_tile_dout_num ),
 
     .clock_b ( clk_sys ),
-    .address_b ( tile[13:0] ),  // only read the tile # for now
+    .address_b ( tile[13:0] ),    // only read the tile # for now
     .wren_b ( 0 ),
     .q_b ( tile_attr_dout[15:0] )
-    );    
+    );
 
-    
 // sprite attribute ram.  each tile attribute is 4 16bit words
 // indirect access through offset register
 // split up so 64 bits can be read in a single clock
@@ -1608,7 +1551,7 @@ dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_0_buf (
     .wren_b ( 0 ),
     .q_b ( sprite_attr_0_buf_dout[15:0] )
     );
-    
+
 dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_1 (
     .clock_a ( clk_10M ),
     .address_a ( curr_sprite_ofs[9:2] ),
@@ -1621,7 +1564,7 @@ dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_1 (
     .wren_b ( 0 ),
     .q_b ( sprite_attr_1_dout[15:0] )
     );
-    
+
 dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_1_buf (
     .clock_a ( clk_sys ),
     .address_a ( sprite_buf_num ),
@@ -1660,7 +1603,7 @@ dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_2_buf (
     .wren_b ( 0 ),
     .q_b ( sprite_attr_2_buf_dout[15:0] )
     );
-    
+
 dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_3 (
     .clock_a ( clk_10M ),
     .address_a ( curr_sprite_ofs[9:2] ),
@@ -1672,7 +1615,7 @@ dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_3 (
     .address_b ( sprite_num_copy ),
     .wren_b ( 0 ),
     .q_b ( sprite_attr_3_dout[15:0] )
-    );    
+    );
 
 dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_3_buf (
     .clock_a ( clk_sys ),
@@ -1685,7 +1628,7 @@ dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_3_buf (
     .address_b ( sprite_num ),
     .wren_b ( 0 ),
     .q_b ( sprite_attr_3_buf_dout[15:0] )
-    );       
+    );
 
 dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_size (
     .clock_a ( clk_10M ),
@@ -1698,8 +1641,8 @@ dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_size (
     .address_b ( sprite_num_copy ),
     .wren_b ( 0 ),
     .q_b ( sprite_size_dout )
-    );    
-    
+    );
+
 dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_size_buf (
     .clock_a ( clk_sys ),
     .address_a ( sprite_buf_num ),
@@ -1712,9 +1655,9 @@ dual_port_ram #(.LEN(256), .DATA_WIDTH(16)) sprite_ram_size_buf (
     .wren_b ( 0 ),
     .q_b ( sprite_size_buf_dout )
     
-    ); 
+    );
 
-      
+
 // tiles  1024 15 bit values.  index is ( 6 bits from tile attribute, 4 bits from bitmap )
 // background palette ram low    
 // does this need to be byte addressable?
@@ -1745,7 +1688,7 @@ dual_port_ram #(.LEN(1024), .DATA_WIDTH(8)) tile_palram_h (
     .q_b ( tile_palette_dout[15:8] )
     );
 
-// sprite palette ram low    
+// sprite palette ram low
 // does this need to be byte addressable?
 dual_port_ram #(.LEN(1024), .DATA_WIDTH(8)) sprite_palram_l (
     .clock_a ( clk_10M ),
@@ -1772,10 +1715,10 @@ dual_port_ram #(.LEN(1024), .DATA_WIDTH(8)) sprite_palram_h (
     .address_b ( sprite_palette_addr ),
     .wren_b ( 0 ),
     .q_b ( sprite_palette_dout[15:8] )
-    );   
+    );
 
-    
-// main 68k ram low                 
+
+// main 68k ram low
 dual_port_ram #(.LEN(16384), .DATA_WIDTH(8))    ram16kx8_L (
     .clock_a ( clk_10M ),
     .address_a ( cpu_a[14:1] ),
@@ -1784,7 +1727,7 @@ dual_port_ram #(.LEN(16384), .DATA_WIDTH(8))    ram16kx8_L (
     .q_a (  ram_dout[7:0] )
     );
 
-// main 68k ram high    
+// main 68k ram high
 dual_port_ram #(.LEN(16384), .DATA_WIDTH(8))     ram16kx8_H (
     .clock_a ( clk_10M ),
     .address_a ( cpu_a[14:1] ),
@@ -1795,10 +1738,10 @@ dual_port_ram #(.LEN(16384), .DATA_WIDTH(8))     ram16kx8_H (
 
 
 //wire [15:0] z80_shared_addr = z80_addr - 16'h8000;
-//wire [23:0] m68k_shard_addr = cpu_a    - 24'h040000  ;
+//wire [23:0] m68k_shard_addr = cpu_a    - 24'h040000;
 
-// z80 and 68k shared ram   
-// 4k 
+// z80 and 68k shared ram
+// 4k
 dual_port_ram #(.LEN(4096), .DATA_WIDTH(8))  shared_ram (
     .clock_a ( clk_10M ),
     .address_a ( cpu_a[12:1] ),
@@ -1812,10 +1755,10 @@ dual_port_ram #(.LEN(4096), .DATA_WIDTH(8))  shared_ram (
     .wren_b ( sound_ram_1_cs & ~z80_wr_n ),
     .q_b ( z80_shared_dout )
     );
-    
+
 reg [11:0] sprite_rb_addr;
 wire [15:0] sprite_rb_dout;
-    
+
 dual_port_ram #(.LEN(4096), .DATA_WIDTH(8)) sprite_ram_rb_l (
     .clock_a ( clk_10M ),
     .address_a ( cpu_a[12:1] ),
@@ -1828,7 +1771,6 @@ dual_port_ram #(.LEN(4096), .DATA_WIDTH(8)) sprite_ram_rb_l (
     .wren_b ( 0 ),
     .q_b ( sprite_rb_dout[7:0] )
     );
-    
 
 dual_port_ram #(.LEN(4096), .DATA_WIDTH(8)) sprite_ram_rb_h (
     .clock_a ( clk_10M ),
@@ -1851,7 +1793,6 @@ reg         sdram_req;
 wire        sdram_ack;
 wire        sdram_valid;
 wire [31:0] sdram_q;
-
 
 sdram #(.CLK_FREQ(70.0)) sdram
 (
@@ -1881,7 +1822,6 @@ sdram #(.CLK_FREQ(70.0)) sdram
   .sdram_dqmh(SDRAM_DQMH)
 );
 
-
 wire        prog_cache_rom_cs;
 wire [22:0] prog_cache_addr;
 wire [15:0] prog_cache_data;
@@ -1909,15 +1849,13 @@ wire        sprite_rom_data_valid;
 
 reg  [31:0] sprite_data;
 
-
 wire [15:0] sound_rom_1_addr;
 wire  [7:0] sound_rom_1_data;
 wire        sound_rom_1_data_valid;
 
-
-    // sdram priority based rom controller
+// sdram priority based rom controller
 // is a oe needed?
-rom_controller rom_controller 
+rom_controller rom_controller
 (
     .reset(reset),
 
@@ -2014,7 +1952,7 @@ endmodule
 
 module cc_shifter
 (
-    input clk_out,  
+    input clk_out,
     input i,
     output o
 );
@@ -2022,11 +1960,11 @@ module cc_shifter
 // We use a two-stages shift-register to synchronize SignalIn_clkA to the clkB clock domain
 reg [1:0] r;
 
-assign o = r[1];  // new signal synchronized to (=ready to be used in) clkB domain
+assign o = r[1];    // new signal synchronized to (=ready to be used in) clkB domain
 
 always @(posedge clk_out) begin
-    r[0] <= i;  
-    r[1] <= r[0];   // notice that we use clkB
+    r[0] <= i;
+    r[1] <= r[0];    // notice that we use clkB
 end
 
 endmodule
