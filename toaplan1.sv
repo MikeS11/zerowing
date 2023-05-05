@@ -367,24 +367,24 @@ always @ (posedge clk_sys ) begin
     system    <= { vbl, start2, start1, coin_b, coin_a, service, key_tilt, key_service };
 end
 
-wire        p1_right;
-wire        p1_left;
-wire        p1_down;
-wire        p1_up;
-wire [2:0]  p1_buttons;
+reg        p1_right;
+reg        p1_left;
+reg        p1_down;
+reg        p1_up;
+reg [2:0]  p1_buttons;
 
-wire        p2_right;
-wire        p2_left;
-wire        p2_down;
-wire        p2_up;
-wire [2:0]  p2_buttons;
+reg        p2_right;
+reg        p2_left;
+reg        p2_down;
+reg        p2_up;
+reg [2:0]  p2_buttons;
 
-wire start1;
-wire start2;
-wire coin_a;
-wire coin_b;
-wire b_pause;
-wire service;
+reg start1;
+reg start2;
+reg coin_a;
+reg coin_b;
+reg b_pause;
+reg service;
 
 always @ * begin
     p1_right   <= joy0[0]   | key_p1_right;
@@ -409,17 +409,16 @@ end
 
 // Keyboard handler
 
-wire key_start_1p, key_start_2p, key_coin_a, key_coin_b;
-wire key_tilt, key_test, key_reset, key_service, key_pause;
+reg key_start_1p, key_start_2p, key_coin_a, key_coin_b;
+reg key_tilt, key_test, key_reset, key_service, key_pause;
 
-wire key_p1_up, key_p1_left, key_p1_down, key_p1_right, key_p1_a, key_p1_b, key_p1_c;
-wire key_p2_up, key_p2_left, key_p2_down, key_p2_right, key_p2_a, key_p2_b, key_p2_c;
+reg key_p1_up, key_p1_left, key_p1_down, key_p1_right, key_p1_a, key_p1_b, key_p1_c;
+reg key_p2_up, key_p2_left, key_p2_down, key_p2_right, key_p2_a, key_p2_b, key_p2_c;
 
 wire pressed = ps2_key[9];
 
 always @(posedge clk_sys) begin
     reg old_state;
-
     old_state <= ps2_key[10];
     if ( old_state ^ ps2_key[10] ) begin
         casex ( ps2_key[8:0] )
@@ -448,7 +447,6 @@ always @(posedge clk_sys) begin
             'h01C :  key_p2_a       <= pressed;            // a
             'h01B :  key_p2_b       <= pressed;            // s
             'h015 :  key_p2_c       <= pressed;            // q
-
         endcase
     end
 end
