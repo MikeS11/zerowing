@@ -1,5 +1,4 @@
 set_global_assignment -name SDC_FILE toaplan1.sdc
-#set_global_assignment -name SDC_FILE rtl/sdram.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE toaplan1.sv
 set_global_assignment -name QIP_FILE rtl/t80/T80.qip
 set_global_assignment -name QIP_FILE rtl/fx68k/fx68k.qip

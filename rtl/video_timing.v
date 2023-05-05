@@ -29,11 +29,11 @@ module video_timing
 // 320x240 timings
 
 wire [8:0] HBL_CNT = { crtc0[15:8]-1, 1'b1 };
-wire [8:0] HTOTAL  = { crtc0[7:0], 1'b1 };                            // horz total clocks and blank start
-wire [8:0] HBSTART = HTOTAL - HBL_CNT;                                // horz blank begin
+wire [8:0] HTOTAL  = { crtc0[7:0], 1'b1 };                                                           // horz total clocks and blank start
+wire [8:0] HBSTART = HTOTAL - HBL_CNT;                                                               // horz blank begin
 
-wire [8:0] HSSTART = 360 + $signed(hs_offset);                        // horz sync begin
-wire [8:0] HSEND   = 380 + $signed(hs_offset) + $signed(hs_width);    // horz sync end
+wire [8:0] HSSTART = 360 + $signed(hs_offset) - (refresh_mod ? 4'd4 : 3'd0);                         // horz sync begin
+wire [8:0] HSEND   = 380 + $signed(hs_offset) + $signed(hs_offset) + (refresh_mod ? 4'd4 : 3'd0);    // horz sync end
 
 wire [8:0] VBL_CNT = { crtc2[15:8], 1'b1 };
 wire [8:0] VTOTAL  = { crtc2[7:0], 1'b1 };
@@ -65,7 +65,7 @@ always @ (posedge clk) begin
     end else begin
         // counter
         hbl_delay <= hbl;
-        if (h == HTOTAL) begin
+        if (h == HTOTAL - (refresh_mod ? 4'd5 : 3'd0)) begin
             h <= 0;
             hbl <= 0;
 

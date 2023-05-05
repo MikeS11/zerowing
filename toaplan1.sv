@@ -211,8 +211,8 @@ reg        refresh_mod;
 reg        new_vmode;
 
 always @(posedge clk_sys) begin
-    if (refresh_mod != ~status[19]) begin
-        refresh_mod <= ~status[19];
+    if (refresh_mod != status[19]) begin
+        refresh_mod <= status[19];
         new_vmode <= ~new_vmode;
     end
 end
@@ -325,7 +325,7 @@ wire        direct_video;
 
 wire        ioctl_download;
 wire        ioctl_upload;
-//wire        ioctl_upload_req;
+wire        ioctl_upload_req;
 wire        ioctl_wait;
 wire        ioctl_wr;
 wire [15:0] ioctl_index;
@@ -359,14 +359,12 @@ reg [15:0] z80_tjump;
 reg [15:0] system;
 
 always @ (posedge clk_sys ) begin
-    if ( pcb ) begin
-        p1        <= { start1, p1_buttons[2:0], p1_right, p1_left, p1_down, p1_up };
-        p2        <= { start2, p2_buttons[2:0], p2_right, p2_left, p2_down, p2_up };
-        z80_dswa  <= sw[0];
-        z80_dswb  <= sw[1];
-        z80_tjump <= sw[2];
-        system    <= { 1'b0, start2, start1, coin_b, coin_a, service, key_tilt, key_service };
-    end
+    p1        <= { 1'b0, p1_buttons[2:0], p1_right, p1_left, p1_down, p1_up };
+    p2        <= { 1'b0, p2_buttons[2:0], p2_right, p2_left, p2_down, p2_up };
+    z80_dswa  <= sw[0];
+    z80_dswb  <= sw[1];
+    z80_tjump <= sw[2];
+    system    <= { vbl, start2, start1, coin_b, coin_a, service, key_tilt, key_service };
 end
 
 wire        p1_right;
@@ -389,26 +387,24 @@ wire b_pause;
 wire service;
 
 always @ * begin
-    if ( pcb ) begin
-        p1_right   <= joy0[0]   | key_p1_right;
-        p1_left    <= joy0[1]   | key_p1_left;
-        p1_down    <= joy0[2]   | key_p1_down;
-        p1_up      <= joy0[3]   | key_p1_up;
-        p1_buttons <= joy0[6:4] | {key_p1_c, key_p1_b, key_p1_a};
+    p1_right   <= joy0[0]   | key_p1_right;
+    p1_left    <= joy0[1]   | key_p1_left;
+    p1_down    <= joy0[2]   | key_p1_down;
+    p1_up      <= joy0[3]   | key_p1_up;
+    p1_buttons <= joy0[6:4] | {key_p1_c, key_p1_b, key_p1_a};
 
-        p2_right   <= joy1[0]   | key_p2_right;
-        p2_left    <= joy1[1]   | key_p2_left;
-        p2_down    <= joy1[2]   | key_p2_down;
-        p2_up      <= joy1[3]   | key_p2_up;
-        p2_buttons <= joy1[6:4] | {key_p2_c, key_p2_b, key_p2_a};
+    p2_right   <= joy1[0]   | key_p2_right;
+    p2_left    <= joy1[1]   | key_p2_left;
+    p2_down    <= joy1[2]   | key_p2_down;
+    p2_up      <= joy1[3]   | key_p2_up;
+    p2_buttons <= joy1[6:4] | {key_p2_c, key_p2_b, key_p2_a};
 
-        start1    <= joy0[7]  | joy1[7]  | key_start_1p;
-        start2    <= joy0[8]  | joy1[8]  | key_start_2p;
-        coin_a    <= joy0[9]  | joy1[9]  | key_coin_a;
-        coin_b    <= joy0[10] | joy1[10] | key_coin_b;
-        b_pause   <= joy0[11] | key_pause;
-        service   <= key_test | status[14];
-    end
+    start1    <= joy0[7]  | joy1[7]  | key_start_1p;
+    start2    <= joy0[8]  | joy1[8]  | key_start_2p;
+    coin_a    <= joy0[9]  | joy1[9]  | key_coin_a;
+    coin_b    <= joy0[10] | joy1[10] | key_coin_b;
+    b_pause   <= joy0[11] | key_pause;
+    service   <= key_test | status[14];
 end
 
 // Keyboard handler
@@ -627,7 +623,7 @@ arcade_video #(320,24) arcade_video
 
 // SET PAL and NTSC TIMING
 `ifdef MISTER_ENABLE_YC
-    assign CHROMA_PHASE_INC = PALFLAG ? 40'd56225315217: 40'd56225315217;
+    assign CHROMA_PHASE_INC = PALFLAG ? 40'd56225172000: 40'd56225172000;
     assign YC_EN =  status[22];
     assign PALFLAG = status[7];
 `endif
@@ -744,7 +740,7 @@ always @ (posedge clk_sys) begin
         // always ack when it's not program rom
         dtack_n <= prog_rom_cs ? !prog_rom_data_valid : 0;
         // add dsp_ctrl_cs to cpu_din
-        // select cpu data input based on what is active 
+        // select cpu data input based on what is active
         cpu_din <= prog_rom_cs ? prog_rom_data :
             ram_cs ? ram_dout :
             tile_palette_cs ?  tile_palette_cpu_dout :
@@ -760,6 +756,7 @@ always @ (posedge clk_sys) begin
             sprite_3_cs ? sprite_3_dout :
             sprite_size_cs ? sprite_size_cpu_dout :
             frame_done_cs ? { 16 { vbl } } : // get vblank state
+            vblank_cs ? { 15'b0, vbl } :
             int_en_cs ? 16'hffff :
             16'd0;
     end
@@ -931,7 +928,7 @@ wire tile_attr_cs;
 wire tile_num_cs;
 wire scroll_cs;
 wire shared_ram_cs;
-wire frame_done_cs;    // word
+wire frame_done_cs; // word
 wire tile_palette_cs;
 wire sprite_palette_cs;
 wire sprite_ofs_cs;
