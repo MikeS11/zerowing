@@ -209,6 +209,7 @@ wire       orientation  = ~status[3];
 wire [2:0] scan_lines   = status[6:4];
 reg        refresh_mod;
 reg        new_vmode;
+wire       sound_on     = status[11];
 
 always @(posedge clk_sys) begin
     if (refresh_mod != status[19]) begin
@@ -844,7 +845,6 @@ always @ (posedge clk_sys) begin
                 sound_wr <= 1;
             end
         end
-
     end
 end
 
@@ -880,8 +880,13 @@ jtopl #(.OPL_TYPE(2)) jtopl2
 );
 
 always @ (posedge opl_sample_clk) begin
-    AUDIO_L <= sample;
-    AUDIO_R <= sample;
+    if ( sound_on == 0 ) begin
+        AUDIO_L <= sample;
+        AUDIO_R <= sample;
+    end else begin
+        AUDIO_L <= 0;
+        AUDIO_R <= 0;
+    end
 end
 
 T80pa u_cpu(
@@ -1078,7 +1083,7 @@ reg [15:0] scroll_ofs_y;
 wire [15:0] cpu_tile_dout_attr;
 wire [15:0] cpu_tile_dout_num;
 
-wire [15:0] sprite_0_dout; 
+wire [15:0] sprite_0_dout;
 wire [15:0] sprite_1_dout;
 wire [15:0] sprite_2_dout;
 wire [15:0] sprite_3_dout;
@@ -1447,7 +1452,7 @@ always @ (posedge clk_sys) begin
                 // wait for next line or quit
                 if ( y == 239 ) begin
                     draw_state <= 0;
-                end else if ( hc == 449 ) begin
+                end else if ( hc ==  (status[19] ? 9'd444 : 9'd449) ) begin
                     y <= y + 1;
                     draw_state <= 2;
                     sprite_state <= 0;
