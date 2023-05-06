@@ -1,15 +1,15 @@
 <misterromdescription>
   <name>Rally Bike / Dash Yarou</name>
-  <mameversion>0229</mameversion>
+  <mameversion>0250</mameversion>
   <setname>rallybik</setname>
   <year>1989</year>
   <manufacturer>Toaplan</manufacturer>
   <category>Racing</category>
   <rbf>toaplan1</rbf>
 
-  <buttons names="Accelerate,Brake,-,Start,Coin" default="A,B,R,L"/>
+  <buttons names="Accelerate,Brake,-,P1 Start,P2 Start,Coin A,Coin B,Pause" default="A,B,X,Y,R,Start"/>
 
-  <switches default="00,00,00,00">
+  <switches default="00,00,00,00,00,00,00,00">
     <!-- DSWA -->
     <dip name="Cabinet" bits="0" ids="Cocktail,Upright"/>
     <dip name="Flip Screen" bits="1" ids="Off,On"/>
@@ -26,39 +26,43 @@
     <dip name="Test Switch" bits="18" ids="Off,On"/>
   </switches>
 
-  <!-- ROM data -->
-    <rom index="0" zip="rallybik.zip" md5="None">
-    <!-- maincpu - starts at 0x0 -->
-    <interleave output="16">
-        <part name="b45-02.rom" crc="383386d7" map="01"/>
-        <part name="b45-01.rom" crc="7602f6a7" map="10"/>
-    </interleave>
-    <part repeat="0x30000"> FF</part>
-    <interleave output="16">
-        <part name="b45-04.rom" crc="e9b005b1" map="01"/>
-        <part name="b45-03.rom" crc="555344ce" map="10"/>
-    </interleave>
-
-    <!-- gfx1 - starts at 0x80000 -->
-    <interleave output="32">
-        <part name="b45-09.bin" crc="1dc7b010" map="0001"/>
-        <part name="b45-08.bin" crc="fab661ba" map="0010"/>
-        <part name="b45-07.bin" crc="cd3748b4" map="0100"/>
-        <part name="b45-06.bin" crc="144b085c" map="1000"/>
-    </interleave>
-    <part repeat="0x100000">ff</part>
-
-    <!-- audiocpu - starts at 0x200000 -->
-    <part name="b45-05.rom" crc="10814601"/>
-
-    <!-- scu - starts at 0x204000 -->
-    <part name="b45-11.rom" crc="0d56e8bb"/>
-    <part name="b45-10.rom" crc="dbb7c57e"/>
-    <part name="b45-12.rom" crc="cf5aae4e"/>
-    <part name="b45-13.rom" crc="1683b07c"/>
-  </rom>
-
   <rom index="1">
     <part>07</part>
   </rom>
+
+  <!-- ROM data -->
+    <rom index="0" zip="rallybik.zip" md5="None">
+        <!-- maincpu - starts at 0x0 -->
+        <interleave output="16">
+            <part name="b45-02.rom" crc="383386d7" map="01"/>
+            <part name="b45-01.rom" crc="7602f6a7" map="10"/>
+        </interleave>
+        <part repeat="0x30000"> FF</part>
+        <interleave output="16">
+            <part name="b45-04.rom" crc="e9b005b1" map="01"/>
+            <part name="b45-03.rom" crc="555344ce" map="10"/>
+        </interleave>
+
+        <!-- gfx1 - starts at 0x80000 -->
+        <interleave output="32">
+            <part name="b45-08.bin" crc="fab661ba" map="0001"/>
+            <part name="b45-09.bin" crc="1dc7b010" map="0010"/>
+            <part name="b45-06.bin" crc="144b085c" map="0100"/>
+            <part name="b45-07.bin" crc="cd3748b4" map="1000"/>
+        </interleave>
+        <part repeat="0x80000"> FF</part>
+
+        <!-- scu - starts at 0x180000 -->
+        <interleave output="32">
+            <part name="b45-11.rom" crc="0d56e8bb" map="0001"/>
+            <part name="b45-10.rom" crc="dbb7c57e" map="0010"/>
+            <part name="b45-12.rom" crc="cf5aae4e" map="0100"/>
+            <part name="b45-13.rom" crc="1683b07c" map="1000"/>
+            <part repeat="0x40000"> FF</part>
+        </interleave>
+
+        <!-- audiocpu - starts at 0x200000 -->
+        <part name="b45-05.rom" crc="10814601"/>
+
+        <!-- Total 0x204000 bytes - 2064 kBytes -->
 </misterromdescription>
