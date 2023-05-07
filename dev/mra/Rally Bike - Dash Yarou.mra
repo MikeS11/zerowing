@@ -45,10 +45,10 @@
 
         <!-- gfx1 - starts at 0x80000 -->
         <interleave output="32">
-            <part name="b45-08.bin" crc="fab661ba" map="0001"/>
-            <part name="b45-09.bin" crc="1dc7b010" map="0010"/>
-            <part name="b45-06.bin" crc="144b085c" map="0100"/>
-            <part name="b45-07.bin" crc="cd3748b4" map="1000"/>
+            <part name="b45-09.bin" crc="1dc7b010" map="0001"/>
+            <part name="b45-08.bin" crc="fab661ba" map="0010"/>
+            <part name="b45-07.bin" crc="cd3748b4" map="0100"/>
+            <part name="b45-06.bin" crc="144b085c" map="1000"/>
         </interleave>
         <part repeat="0x80000"> FF</part>
 
@@ -58,11 +58,12 @@
             <part name="b45-10.rom" crc="dbb7c57e" map="0010"/>
             <part name="b45-12.rom" crc="cf5aae4e" map="0100"/>
             <part name="b45-13.rom" crc="1683b07c" map="1000"/>
-            <part repeat="0x40000"> FF</part>
         </interleave>
+        <part repeat="0x40000"> FF</part>
 
         <!-- audiocpu - starts at 0x200000 -->
         <part name="b45-05.rom" crc="10814601"/>
 
         <!-- Total 0x204000 bytes - 2064 kBytes -->
+  </rom>
 </misterromdescription>

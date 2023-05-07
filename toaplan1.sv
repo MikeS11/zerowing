@@ -609,7 +609,8 @@ arcade_video #(320,24) arcade_video
         .fx(scan_lines)
 );
 
-/*     Phase Accumulator Increments (Fractional Size 32, look up size 8 bit, total 40 bits)
+/*
+     Phase Accumulator Increments (Fractional Size 32, look up size 8 bit, total 40 bits)
     Increment Calculation - (Output Clock * 2 ^ Word Size) / Reference Clock
     Example
     NTSC = 3.579545

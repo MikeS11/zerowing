@@ -48,7 +48,6 @@ module chip_select
 
     // other params
     output reg [15:0] scroll_y_offset
-    
 );
 
 localparam pcb_zero_wing     = 0;
@@ -110,7 +109,7 @@ always @(*) begin
             tile_attr_cs      = m68k_cs( 'h480004,  1 );
             tile_num_cs       = m68k_cs( 'h480006,  1 );
             scroll_cs         = m68k_cs( 'h480010,  4 );
-            
+
             frame_done_cs     = m68k_cs( 'h4c0000,  1 );
             sprite_ofs_cs     = m68k_cs( 'h4c0002,  1 );
             sprite_cs         = m68k_cs( 'h4c0004,  1 );
@@ -245,44 +244,6 @@ always @(*) begin
             z80_sound1_cs     = z80_cs( 8'h61 );
         end
 
-        pcb_vimana: begin
-            prog_rom_cs       = m68k_cs( 'h000000, 19 );
-
-            scroll_ofs_x_cs   = m68k_cs( 'h1c0000,  1 );
-            scroll_ofs_y_cs   = m68k_cs( 'h1c0002,  1 );
-            fcu_flip_cs       = m68k_cs( 'h1c0006,  1 );
-
-            frame_done_cs     = m68k_cs( 'h0c0000,  1 );
-            sprite_ofs_cs     = m68k_cs( 'h0c0002,  1 );
-            sprite_cs         = m68k_cs( 'h0c0004,  1 );
-            sprite_size_cs    = m68k_cs( 'h0c0006,  1 );
-
-            vblank_cs         = m68k_cs( 'h400000,  1 );
-            int_en_cs         = m68k_cs( 'h400002,  1 );
-            crtc_cs           = m68k_cs( 'h400008,  3 );
-
-            tile_palette_cs   = m68k_cs( 'h404000, 11 );
-            sprite_palette_cs = m68k_cs( 'h406000, 11 );
-
-            shared_ram_cs     = m68k_cs( 'h440000, 12 );
-
-            ram_cs            = m68k_cs( 'h480000, 15 );
-
-            bcu_flip_cs       = m68k_cs( 'h4c0000,  1 );
-            tile_ofs_cs       = m68k_cs( 'h4c0002,  1 );
-            tile_attr_cs      = m68k_cs( 'h4c0004,  1 );
-            tile_num_cs       = m68k_cs( 'h4c0006,  1 );
-            scroll_cs         = m68k_cs( 'h4c0010,  4 );
-
-            z80_p1_cs         = z80_cs( 8'h80 );
-            z80_p2_cs         = z80_cs( 8'h81 );
-            z80_dswa_cs       = z80_cs( 8'h82 );
-            z80_system_cs     = z80_cs( 8'h83 );
-            z80_dswb_cs       = z80_cs( 8'h84 );
-            z80_sound0_cs     = z80_cs( 8'h87 );
-            z80_sound1_cs     = z80_cs( 8'h8f );
-        end
-
         pcb_rallybike: begin
             prog_rom_cs       = m68k_cs( 'h000000, 19 );
             ram_cs            = m68k_cs( 'h080000, 14 );
@@ -327,17 +288,17 @@ always @(*) begin
 
         pcb_demonwld: begin
             prog_rom_cs       = m68k_cs( 'h000000, 18 );    // map(0x000000, 0x03ffff).rom();
-            
+
             ram_cs            = m68k_cs( 'hc00000, 14 );    // map(0xc00000, 0xc03fff).ram();
-            
+
             scroll_ofs_x_cs   = m68k_cs( 'he00000,  1 );    // map(0xe00000, 0xe00003).w(FUNC(toaplan1_demonwld_state::tile_offsets_w));
             scroll_ofs_y_cs   = m68k_cs( 'he00002,  1 );    // map(0xe00000, 0xe00003).w(FUNC(toaplan1_demonwld_state::tile_offsets_w));
             fcu_flip_cs       = m68k_cs( 'he00006,  1 );    // map(0xe00006, 0xe00006).w(FUNC(toaplan1_demonwld_state::fcu_flipscreen_w));
-            
+
             vblank_cs         = m68k_cs( 'h400000,  1 );    // map(0x400000, 0x400001).portr("VBLANK");
             int_en_cs         = m68k_cs( 'h400002,  1 );    // map(0x400003, 0x400003).w(FUNC(toaplan1_demonwld_state::intenable_w));
             crtc_cs           = m68k_cs( 'h400008,  3 );    // map(0x400008, 0x40000f).w(FUNC(toaplan1_demonwld_state::bcu_control_w));
-            
+
             tile_palette_cs   = m68k_cs( 'h404000, 11 );    // map(0x404000, 0x4047ff).ram().w(FUNC(toaplan1_demonwld_state::bgpalette_w)).share("bgpalette");
             sprite_palette_cs = m68k_cs( 'h406000, 11 );    // map(0x406000, 0x4067ff).ram().w(FUNC(toaplan1_demonwld_state::fgpalette_w)).share("fgpalette");
             
@@ -348,7 +309,7 @@ always @(*) begin
             tile_attr_cs      = m68k_cs( 'h800004,  1 );    // map(0x800004, 0x800007).rw(FUNC(toaplan1_demonwld_state::tileram_r), FUNC(toaplan1_demonwld_state::tileram_w));
             tile_num_cs       = m68k_cs( 'h800006,  1 );    // map(0x800004, 0x800007).rw(FUNC(toaplan1_demonwld_state::tileram_r), FUNC(toaplan1_demonwld_state::tileram_w));
             scroll_cs         = m68k_cs( 'h800010,  4 );    // map(0x800010, 0x80001f).rw(FUNC(toaplan1_demonwld_state::scroll_regs_r), FUNC(toaplan1_demonwld_state::scroll_regs_w));
-            
+
             frame_done_cs     = m68k_cs( 'ha00000,  1 );    // map(0xa00000, 0xa00001).r(FUNC(toaplan1_demonwld_state::frame_done_r));
             sprite_ofs_cs     = m68k_cs( 'ha00002,  1 );    // map(0xa00002, 0xa00003).rw(FUNC(toaplan1_demonwld_state::spriteram_offs_r), FUNC(toaplan1_demonwld_state::spriteram_offs_w));
             sprite_cs         = m68k_cs( 'ha00004,  1 );    // map(0xa00004, 0xa00005).rw(FUNC(toaplan1_demonwld_state::spriteram_r), FUNC(toaplan1_demonwld_state::spriteram_w));
