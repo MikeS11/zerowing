@@ -623,7 +623,7 @@ arcade_video #(320,24) arcade_video
 
 // SET PAL and NTSC TIMING
 `ifdef MISTER_ENABLE_YC
-    assign CHROMA_PHASE_INC = PALFLAG ? 40'd56225172000: 40'd56225172000;
+    assign CHROMA_PHASE_INC = PALFLAG ? 40'd56225080500: 40'd56225080500;
     assign YC_EN =  status[22];
     assign PALFLAG = status[7];
 `endif
@@ -1237,6 +1237,15 @@ wire [8:0] sprite_width     = { sprite_size_buf_dout[3:0], 3'b0 } /* synthesis k
 
 reg [7:0] sprite_buf_num;
 
+reg [1:0] vtotal_282_flag; 
+
+always @ (posedge clk_sys) begin // Check System Vcount flag for 60Hz mode
+    if ({crtc[2][7:0], 1'b1 } == 269)
+        vtotal_282_flag <= 0;
+    else
+        vtotal_282_flag <= 1;
+end
+
 always @ (posedge clk_sys) begin
     if ( reset == 1 ) begin
         sprite_state <= 0;
@@ -1359,7 +1368,7 @@ always @ (posedge clk_sys) begin
             sprite_copy_state <= 0;
         end
         // tile state machine
-        if ( draw_state == 0 && vc == { crtc[2][7:0], 1'b1 } ) begin
+        if ( draw_state == 0 && vc == ({ crtc[2][7:0], 1'b1 } - (status[19] ? (vtotal_282_flag ? 5'd19 : 4'd7) : 3'd0)) ) begin // 282 Lines standard (263 Lines for 60Hz)
             layer <= 4; // layer 4 is layer 0 but draws hidden and transparent
             y <= 0;
             draw_state <= 2;
@@ -1453,7 +1462,7 @@ always @ (posedge clk_sys) begin
                 // wait for next line or quit
                 if ( y == 239 ) begin
                     draw_state <= 0;
-                end else if ( hc ==  (status[19] ? 9'd444 : 9'd449) ) begin
+                end else if ( hc ==  (status[19] ? 9'd444 : 9'd449) ) begin // 450 Lines standard (445 Lines for NTSC standard 15.73kHz line freq)
                     y <= y + 1;
                     draw_state <= 2;
                     sprite_state <= 0;
